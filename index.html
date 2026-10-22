@@ -47,12 +47,15 @@
   #qrbox{display:inline-block;background:#fff;padding:14px;border-radius:12px;margin-top:12px}
   #qrbox:empty{display:none}
   #qrmsg{font-size:.85rem;color:var(--sub);margin-top:8px}
+  .vista #cfg, .vista #qrsec{display:none}
+  #vt{color:#ef4444}
+  #vh{color:#60a5fa}
 </style>
 </head>
 <body>
 
 <h1>Monitor de Sensores</h1>
-<div class="sub">ESP32-S3 · DHT11 · MQ2 · datos en vivo vía Blynk</div>
+<div class="sub">Datos en vivo</div>
 
 <div id="banner" class="banner boff">Sin datos<small>Configura tu token abajo</small></div>
 
@@ -79,13 +82,13 @@
 
 <details id="cfg">
   <summary>⚙ Configuración</summary>
-  <label for="token">Token de Blynk (Auth Token)</label>
+  <label for="token">Token</label>
   <input id="token" type="password" placeholder="Pega aquí tu token" autocomplete="off">
-  <label for="server">Servidor de Blynk</label>
+  <label for="server">Servidor</label>
   <input id="server" value="blynk.cloud">
-  <label for="ualarm">Umbral de alarma (gas)</label>
+  <label for="ualarm">A</label>
   <input id="ualarm" type="number" value="2000">
-  <label for="ucrit">Umbral crítico (gas)</label>
+  <label for="ucrit">B</label>
   <input id="ucrit" type="number" value="3600">
   <button id="save">Guardar y conectar</button>
   <div id="err" class="err"></div>
@@ -93,7 +96,7 @@
 </details>
 
 <details id="qrsec">
-  <summary>📱 QR para los jurados</summary>
+  <summary>📱 QR</summary>
   <div class="qrwrap">
     <button id="btnQR">Mostrar QR</button>
     <div><div id="qrbox"></div></div>
@@ -120,9 +123,19 @@ try { Object.assign(cfg, JSON.parse(localStorage.getItem("monitorCfg") || "{}"))
 function leerEnlace(){
   if(!location.hash) return;
   const p = new URLSearchParams(location.hash.slice(1));
+
+  // #admin: vuelve a mostrar la configuración y el QR en este navegador
+  if(p.has("admin")){
+    cfg.vista = false;
+    try{ localStorage.setItem("monitorCfg", JSON.stringify(cfg)); }catch(e){}
+    history.replaceState(null, "", location.pathname + location.search);
+    return;
+  }
+
   const tk = p.get("token");
   if(!tk) return;
   cfg.token = tk;
+  cfg.vista = true;   // modo solo lectura: oculta configuración y QR
   if(p.get("server")) cfg.server = p.get("server");
   try{ localStorage.setItem("monitorCfg", JSON.stringify(cfg)); }catch(e){}
   // Quita el token de la barra de direcciones
@@ -279,6 +292,7 @@ $("btnQR").addEventListener("click", ()=>{
 
 window.addEventListener("resize", dibujar);
 leerEnlace();
+document.body.classList.toggle("vista", !!cfg.vista);
 aplicarCfgEnPantalla();
 if(!cfg.token) $("cfg").open = true;
 iniciar();
