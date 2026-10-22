@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f172a">
+<title>Monitor de Sensores</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --txt:#f1f5f9; --sub:#94a3b8; --line:#334155;
+    --ok:#22c55e; --warn:#f59e0b; --crit:#ef4444; --acc:#38bdf8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:16px;max-width:760px;margin-inline:auto}
+  h1{font-size:1.3rem;margin:4px 0 2px}
+  .sub{color:var(--sub);font-size:.85rem;margin-bottom:14px}
+  .banner{border-radius:14px;padding:16px;font-weight:700;font-size:1.15rem;text-align:center;margin-bottom:14px;transition:background .3s}
+  .banner small{display:block;font-weight:400;font-size:.8rem;opacity:.9;margin-top:2px}
+  .b0{background:rgba(34,197,94,.18);border:1px solid var(--ok);color:#bbf7d0}
+  .b1{background:rgba(245,158,11,.2);border:1px solid var(--warn);color:#fde68a}
+  .b2{background:rgba(239,68,68,.25);border:1px solid var(--crit);color:#fecaca;animation:pulse 0.8s infinite}
+  .boff{background:rgba(148,163,184,.15);border:1px solid var(--sub);color:var(--sub)}
+  @keyframes pulse{50%{background:rgba(239,68,68,.5)}}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .card{background:var(--card);border-radius:14px;padding:14px}
+  .card.full{grid-column:1/-1}
+  .lbl{color:var(--sub);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
+  .val{font-size:2rem;font-weight:700;margin-top:4px}
+  .val span{font-size:1rem;color:var(--sub);font-weight:400}
+  .bar{position:relative;height:14px;background:var(--line);border-radius:7px;margin-top:12px;overflow:hidden}
+  .fill{height:100%;width:0;background:var(--ok);transition:width .4s,background .4s}
+  .mark{position:absolute;top:0;bottom:0;width:2px;background:#fff;opacity:.6}
+  .legend{display:flex;justify-content:space-between;font-size:.72rem;color:var(--sub);margin-top:4px}
+  canvas{width:100%;height:170px;display:block;margin-top:8px}
+  .status{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--sub);margin:10px 2px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--sub)}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--crit)}
+  details{background:var(--card);border-radius:14px;padding:12px 14px;margin-top:12px}
+  summary{cursor:pointer;color:var(--sub);font-size:.9rem}
+  label{display:block;font-size:.8rem;color:var(--sub);margin:10px 0 4px}
+  input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font-size:.9rem}
+  button{margin-top:10px;padding:10px 16px;border:0;border-radius:8px;background:var(--acc);color:#082f49;font-weight:700;cursor:pointer}
+  .err{color:#fca5a5;font-size:.85rem;margin-top:8px;min-height:1.1em}
+  .hint{font-size:.75rem;color:var(--sub);margin-top:8px}
+</style>
+</head>
+<body>
+
+<h1>Monitor de Sensores</h1>
+<div class="sub">ESP32-S3 · DHT11 · MQ2 · datos en vivo vía Blynk</div>
+
+<div id="banner" class="banner boff">Sin datos<small>Configura tu token abajo</small></div>
+
+<div class="grid">
+  <div class="card"><div class="lbl">Temperatura</div><div class="val"><span id="vt">--</span><span> °C</span></div></div>
+  <div class="card"><div class="lbl">Humedad</div><div class="val"><span id="vh">--</span><span> %</span></div></div>
+  <div class="card full">
+    <div class="lbl">Gas (MQ2)</div>
+    <div class="val"><span id="vg">--</span><span> / 4095</span></div>
+    <div class="bar">
+      <div id="fill" class="fill"></div>
+      <div id="mAlarm" class="mark"></div>
+      <div id="mCrit" class="mark"></div>
+    </div>
+    <div class="legend"><span>0</span><span id="lAlarm"></span><span id="lCrit"></span><span>4095</span></div>
+  </div>
+  <div class="card full">
+    <div class="lbl">Gas · últimos minutos</div>
+    <canvas id="chart"></canvas>
+  </div>
+</div>
+
+<div class="status"><span id="dot" class="dot"></span><span id="stxt">Esperando configuración…</span></div>
+
+<details id="cfg">
+  <summary>⚙ Configuración</summary>
+  <label for="token">Token de Blynk (Auth Token)</label>
+  <input id="token" type="password" placeholder="Pega aquí tu token" autocomplete="off">
+  <label for="server">Servidor de Blynk</label>
+  <input id="server" value="blynk.cloud">
+  <label for="ualarm">Umbral de alarma (gas)</label>
+  <input id="ualarm" type="number" value="2000">
+  <label for="ucrit">Umbral crítico (gas)</label>
+  <input id="ucrit" type="number" value="3600">
+  <button id="save">Guardar y conectar</button>
+  <div id="err" class="err"></div>
+  <div class="hint">El token se guarda solo en este navegador. No lo pegues dentro del código si vas a compartir o publicar esta página.</div>
+</details>
+
+<script>
+// Pines virtuales de Blynk (los mismos de tu código del ESP32)
+const PINES = { temp:"v0", hum:"v1", gas:"v2", alarma:"v3" };
+const MAX_PUNTOS = 90;          // ~3 minutos si se pide cada 2 s
+const CADA_MS = 2000;
+
+const $ = id => document.getElementById(id);
+let cfg = { token:"", server:"blynk.cloud", ualarm:2000, ucrit:3600 };
+let historial = [];
+let timer = null;
+
+try { Object.assign(cfg, JSON.parse(localStorage.getItem("monitorCfg") || "{}")); } catch(e){}
+
+function aplicarCfgEnPantalla(){
+  $("token").value = cfg.token;
+  $("server").value = cfg.server;
+  $("ualarm").value = cfg.ualarm;
+  $("ucrit").value = cfg.ucrit;
+  $("lAlarm").textContent = cfg.ualarm;
+  $("lCrit").textContent = cfg.ucrit;
+  $("mAlarm").style.left = (cfg.ualarm/4095*100)+"%";
+  $("mCrit").style.left = (cfg.ucrit/4095*100)+"%";
+}
+
+function banner(clase, titulo, sub){
+  const b = $("banner");
+  b.className = "banner " + clase;
+  b.innerHTML = titulo + (sub ? "<small>"+sub+"</small>" : "");
+}
+
+function setEstado(ok, txt){
+  $("dot").className = "dot " + (ok ? "on" : "off");
+  $("stxt").textContent = txt;
+}
+
+async function pedir(ruta){
+  const r = await fetch("https://" + cfg.server + "/external/api/" + ruta);
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+async function actualizar(){
+  if(!cfg.token) return;
+  const t = encodeURIComponent(cfg.token);
+  try{
+    const [datos, hw] = await Promise.all([
+      pedir("get?token=" + t + "&" + Object.values(PINES).join("&")),
+      pedir("isHardwareConnected?token=" + t)
+    ]);
+
+    const temp = parseFloat(datos[PINES.temp]);
+    const hum  = parseFloat(datos[PINES.hum]);
+    const gas  = parseInt(datos[PINES.gas]);
+    const nivel = parseInt(datos[PINES.alarma]);
+
+    $("vt").textContent = isNaN(temp) ? "--" : temp.toFixed(1);
+    $("vh").textContent = isNaN(hum)  ? "--" : Math.round(hum);
+    $("vg").textContent = isNaN(gas)  ? "--" : gas;
+
+    if(!isNaN(gas)){
+      const pct = Math.min(100, gas/4095*100);
+      const f = $("fill");
+      f.style.width = pct + "%";
+      f.style.background = gas >= cfg.ucrit ? "var(--crit)" : gas > cfg.ualarm ? "var(--warn)" : "var(--ok)";
+      historial.push(gas);
+      if(historial.length > MAX_PUNTOS) historial.shift();
+      dibujar();
+    }
+
+    if(hw !== true && hw !== "true"){
+      banner("boff", "ESP32 desconectado", "El dispositivo no está enviando datos a Blynk");
+      setEstado(false, "Blynk responde, pero el ESP32 está sin conexión");
+    } else if(nivel === 2){
+      banner("b2", "🚨 NIVEL CRÍTICO", "Gas muy alto: ventila y aléjate de la fuente");
+      setEstado(true, "Conectado · actualizado " + new Date().toLocaleTimeString());
+    } else if(nivel === 1){
+      banner("b1", "⚠ ALARMA", "Gas o temperatura sobre el umbral");
+      setEstado(true, "Conectado · actualizado " + new Date().toLocaleTimeString());
+    } else {
+      banner("b0", "✅ Todo normal", "Sin alarmas");
+      setEstado(true, "Conectado · actualizado " + new Date().toLocaleTimeString());
+    }
+    $("err").textContent = "";
+  }catch(e){
+    setEstado(false, "Error de conexión: " + e.message);
+    banner("boff", "Sin datos", "Revisa el token, el servidor o tu internet");
+  }
+}
+
+function dibujar(){
+  const c = $("chart");
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  c.width = w*dpr; c.height = h*dpr;
+  const g = c.getContext("2d");
+  g.scale(dpr, dpr);
+  g.clearRect(0,0,w,h);
+
+  const y = v => h - 8 - (v/4095)*(h-16);
+
+  // Líneas de umbral
+  g.setLineDash([5,4]); g.lineWidth = 1;
+  g.strokeStyle = "#f59e0b"; g.beginPath(); g.moveTo(0,y(cfg.ualarm)); g.lineTo(w,y(cfg.ualarm)); g.stroke();
+  g.strokeStyle = "#ef4444"; g.beginPath(); g.moveTo(0,y(cfg.ucrit));  g.lineTo(w,y(cfg.ucrit));  g.stroke();
+  g.setLineDash([]);
+
+  if(historial.length < 2) return;
+  g.strokeStyle = "#38bdf8"; g.lineWidth = 2; g.beginPath();
+  historial.forEach((v,i)=>{
+    const x = i/(MAX_PUNTOS-1)*w;
+    i ? g.lineTo(x,y(v)) : g.moveTo(x,y(v));
+  });
+  g.stroke();
+}
+
+function iniciar(){
+  clearInterval(timer);
+  historial = [];
+  if(!cfg.token){ setEstado(false, "Esperando configuración…"); return; }
+  setEstado(false, "Conectando…");
+  actualizar();
+  timer = setInterval(actualizar, CADA_MS);
+}
+
+$("save").addEventListener("click", ()=>{
+  const token = $("token").value.trim();
+  if(!token){ $("err").textContent = "Pega tu token de Blynk."; return; }
+  cfg = {
+    token,
+    server: $("server").value.trim() || "blynk.cloud",
+    ualarm: parseInt($("ualarm").value) || 2000,
+    ucrit:  parseInt($("ucrit").value)  || 3600
+  };
+  try{ localStorage.setItem("monitorCfg", JSON.stringify(cfg)); }catch(e){}
+  aplicarCfgEnPantalla();
+  $("cfg").open = false;
+  iniciar();
+});
+
+window.addEventListener("resize", dibujar);
+aplicarCfgEnPantalla();
+if(!cfg.token) $("cfg").open = true;
+iniciar();
+</script>
+</body>
+</html>
