@@ -40,8 +40,13 @@
   label{display:block;font-size:.8rem;color:var(--sub);margin:10px 0 4px}
   input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font-size:.9rem}
   button{margin-top:10px;padding:10px 16px;border:0;border-radius:8px;background:var(--acc);color:#082f49;font-weight:700;cursor:pointer}
+  button.sec{background:var(--line);color:var(--txt)}
   .err{color:#fca5a5;font-size:.85rem;margin-top:8px;min-height:1.1em}
   .hint{font-size:.75rem;color:var(--sub);margin-top:8px}
+  .qrwrap{text-align:center}
+  #qrbox{display:inline-block;background:#fff;padding:14px;border-radius:12px;margin-top:12px}
+  #qrbox:empty{display:none}
+  #qrmsg{font-size:.85rem;color:var(--sub);margin-top:8px}
 </style>
 </head>
 <body>
@@ -87,6 +92,17 @@
   <div class="hint">El token se guarda solo en este navegador. No lo pegues dentro del código si vas a compartir o publicar esta página.</div>
 </details>
 
+<details id="qrsec">
+  <summary>📱 QR para los jurados</summary>
+  <div class="qrwrap">
+    <button id="btnQR">Mostrar QR</button>
+    <div><div id="qrbox"></div></div>
+    <div id="qrmsg"></div>
+  </div>
+  <div class="hint">Quien escanee el QR entra directo a esta página con los datos en vivo, sin escribir nada. El QR lleva tu token: úsalo solo en la demostración y después regenera el token en Blynk.</div>
+</details>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 // Pines virtuales de Blynk (los mismos de tu código del ESP32)
 const PINES = { temp:"v0", hum:"v1", gas:"v2", alarma:"v3" };
@@ -99,6 +115,19 @@ let historial = [];
 let timer = null;
 
 try { Object.assign(cfg, JSON.parse(localStorage.getItem("monitorCfg") || "{}")); } catch(e){}
+
+// Si la página se abrió desde el QR, el token viene en el enlace (#token=...)
+function leerEnlace(){
+  if(!location.hash) return;
+  const p = new URLSearchParams(location.hash.slice(1));
+  const tk = p.get("token");
+  if(!tk) return;
+  cfg.token = tk;
+  if(p.get("server")) cfg.server = p.get("server");
+  try{ localStorage.setItem("monitorCfg", JSON.stringify(cfg)); }catch(e){}
+  // Quita el token de la barra de direcciones
+  history.replaceState(null, "", location.pathname + location.search);
+}
 
 function aplicarCfgEnPantalla(){
   $("token").value = cfg.token;
@@ -226,7 +255,30 @@ $("save").addEventListener("click", ()=>{
   iniciar();
 });
 
+// Genera el QR con el enlace de esta página + el token
+$("btnQR").addEventListener("click", ()=>{
+  const box = $("qrbox"), msg = $("qrmsg");
+  box.innerHTML = ""; msg.textContent = "";
+
+  if(!cfg.token){ msg.textContent = "Primero configura tu token y conecta."; return; }
+  if(location.protocol === "file:"){
+    msg.textContent = "Esta página está abierta como archivo local. Publícala (GitHub Pages, por ejemplo), ábrela desde su enlace y vuelve a presionar el botón.";
+    return;
+  }
+  if(typeof QRCode === "undefined"){
+    msg.textContent = "No se pudo cargar el generador de QR. Revisa tu internet.";
+    return;
+  }
+
+  let url = location.origin + location.pathname + "#token=" + encodeURIComponent(cfg.token);
+  if(cfg.server !== "blynk.cloud") url += "&server=" + encodeURIComponent(cfg.server);
+
+  new QRCode(box, { text:url, width:220, height:220, correctLevel:QRCode.CorrectLevel.M });
+  msg.textContent = "Escanéalo con la cámara del celular.";
+});
+
 window.addEventListener("resize", dibujar);
+leerEnlace();
 aplicarCfgEnPantalla();
 if(!cfg.token) $("cfg").open = true;
 iniciar();
