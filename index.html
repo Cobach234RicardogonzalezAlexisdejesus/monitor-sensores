@@ -316,8 +316,43 @@ $("btnQR").addEventListener("click", ()=>{
   let url = location.origin + location.pathname + "#token=" + encodeURIComponent(cfg.token);
   if(cfg.server !== "blynk.cloud") url += "&server=" + encodeURIComponent(cfg.server);
 
-  new QRCode(box, { text:url, width:220, height:220, correctLevel:QRCode.CorrectLevel.M });
-  msg.textContent = "Escanéalo con la cámara del celular.";
+  // Se dibuja en 1000x1000 (alta resolución) y se muestra a 220 px en pantalla
+  new QRCode(box, { text:url, width:1000, height:1000, correctLevel:QRCode.CorrectLevel.M });
+  box.querySelectorAll("canvas,img").forEach(e=>{ e.style.width = "220px"; e.style.height = "220px"; });
+  msg.textContent = "Escanéalo con la cámara del celular. ";
+
+  // Botón para descargar el QR en alta resolución (para imprimir)
+  const cv = box.querySelector("canvas");
+  if(cv){
+    // Imagen final: el QR con margen blanco alrededor (sin margen muchos celulares no lo leen)
+    const m = 100;
+    const out = document.createElement("canvas");
+    out.width = out.height = cv.width + m*2;
+    const g = out.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, out.width, out.height);
+    g.drawImage(cv, m, m);
+    const png = out.toDataURL("image/png");
+
+    const a = document.createElement("a");
+    a.textContent = "Descargar imagen del QR";
+    a.href = png;
+    a.download = "qr-sensor.png";
+    a.style.color = "var(--acc)";
+    msg.appendChild(a);
+
+    const pb = document.createElement("button");
+    pb.textContent = "Imprimir solo el QR";
+    pb.style.display = "block";
+    pb.style.margin = "10px auto 0";
+    pb.onclick = ()=>{
+      const w = window.open("", "_blank");
+      if(!w){ msg.textContent = "El navegador bloqueó la ventana. Permite las ventanas emergentes y vuelve a intentar."; return; }
+      w.document.write('<!doctype html><title>QR</title><style>@page{margin:10mm}body{margin:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#fff}img{width:9cm;height:9cm}</style><img src="' + png + '">');
+      w.document.close();
+      setTimeout(()=>{ w.focus(); w.print(); }, 400);
+    };
+    msg.appendChild(pb);
+  }
 });
 
 // Asistente: manda las lecturas y la pregunta al Worker, que consulta a la IA
