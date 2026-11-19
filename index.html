@@ -54,6 +54,13 @@
   .iarow input{flex:1}
   .iarow button{margin:0}
   button:disabled{opacity:.5;cursor:default}
+  .vozlbl{display:flex;align-items:center;gap:8px;margin:10px 0 0;cursor:pointer}
+  .vozlbl input{width:auto;margin:0}
+  #iaMic{background:var(--line);color:var(--txt);padding:10px 12px}
+  #iaMic.escuchando{background:var(--crit);color:#fff}
+  .volrow{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:.85rem;color:var(--sub)}
+  .volrow input{width:auto;flex:1;padding:0;border:0;background:none;accent-color:var(--acc)}
+  .volrow #iaVolTxt{min-width:2.2em;text-align:right;color:var(--txt)}
   .iaout{margin-top:12px;font-size:.92rem;line-height:1.5;white-space:pre-wrap;min-height:1.2em}
   #vt{color:#ef4444}
   #vh{color:#60a5fa}
@@ -97,7 +104,14 @@
   </div>
   <div class="iarow">
     <input id="iaq" placeholder="Pregunta sobre las lecturas…" maxlength="300" autocomplete="off">
+    <button id="iaMic" title="Hablar" aria-label="Hablar">🎤</button>
     <button id="iaBtn">Preguntar</button>
+  </div>
+  <label class="vozlbl"><input type="checkbox" id="iaVoz"> 🔊 Leer respuestas en voz alta</label>
+  <div class="volrow">
+    <span>🔈 Volumen</span>
+    <input type="range" id="iaVol" min="0" max="100" value="100" aria-label="Volumen de la voz">
+    <span id="iaVolTxt">100</span>
   </div>
   <div id="iaOut" class="iaout"></div>
 </div>
@@ -324,34 +338,12 @@ $("btnQR").addEventListener("click", ()=>{
   // Botón para descargar el QR en alta resolución (para imprimir)
   const cv = box.querySelector("canvas");
   if(cv){
-    // Imagen final: el QR con margen blanco alrededor (sin margen muchos celulares no lo leen)
-    const m = 100;
-    const out = document.createElement("canvas");
-    out.width = out.height = cv.width + m*2;
-    const g = out.getContext("2d");
-    g.fillStyle = "#fff"; g.fillRect(0, 0, out.width, out.height);
-    g.drawImage(cv, m, m);
-    const png = out.toDataURL("image/png");
-
     const a = document.createElement("a");
-    a.textContent = "Descargar imagen del QR";
-    a.href = png;
+    a.textContent = "Descargar QR para imprimir";
+    a.href = cv.toDataURL("image/png");
     a.download = "qr-sensor.png";
     a.style.color = "var(--acc)";
     msg.appendChild(a);
-
-    const pb = document.createElement("button");
-    pb.textContent = "Imprimir solo el QR";
-    pb.style.display = "block";
-    pb.style.margin = "10px auto 0";
-    pb.onclick = ()=>{
-      const w = window.open("", "_blank");
-      if(!w){ msg.textContent = "El navegador bloqueó la ventana. Permite las ventanas emergentes y vuelve a intentar."; return; }
-      w.document.write('<!doctype html><title>QR</title><style>@page{margin:10mm}body{margin:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#fff}img{width:9cm;height:9cm}</style><img src="' + png + '">');
-      w.document.close();
-      setTimeout(()=>{ w.focus(); w.print(); }, 400);
-    };
-    msg.appendChild(pb);
   }
 });
 
@@ -380,11 +372,104 @@ async function preguntarIA(texto){
     });
     const d = await r.json();
     out.textContent = r.ok ? d.respuesta : (d.error || "No se pudo obtener respuesta.");
+    if(r.ok && ($("iaVoz").checked || preguntoPorVoz)) hablar(d.respuesta);
+    preguntoPorVoz = false;
   }catch(e){
     out.textContent = "No se pudo conectar con el asistente.";
   }
   setTimeout(()=>{ iaOcupada = false; $("iaBtn").disabled = false; }, 4000);
 }
+
+// Voz: dictado (SpeechRecognition) y lectura (speechSynthesis) del navegador
+let preguntoPorVoz = false;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let reconocimiento = null;
+let escuchando = false;
+
+try{ speechSynthesis.getVoices(); }catch(e){}   // precarga las voces
+
+// Volumen de la voz (0 a 100), se recuerda en este navegador
+function volumen(){
+  return Math.min(100, Math.max(0, parseInt($("iaVol").value) || 0)) / 100;
+}
+try{ const g = localStorage.getItem("iaVol"); if(g !== null) $("iaVol").value = g; }catch(e){}
+$("iaVolTxt").textContent = $("iaVol").value;
+$("iaVol").addEventListener("input", ()=>{
+  $("iaVolTxt").textContent = $("iaVol").value;
+  try{ localStorage.setItem("iaVol", $("iaVol").value); }catch(e){}
+});
+// Al soltar la barra, dice una frase corta para probar el volumen
+$("iaVol").addEventListener("change", ()=> hablar("Prueba de volumen"));
+
+function hablar(texto){
+  if(!("speechSynthesis" in window) || !texto) return;
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(texto);
+    u.lang = "es-MX";
+    const voces = speechSynthesis.getVoices();
+    const v = voces.find(x => x.lang === "es-MX") ||
+              voces.find(x => x.lang && x.lang.toLowerCase().startsWith("es"));
+    if(v) u.voice = v;
+    u.rate = 1;
+    u.volume = volumen();
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+function detenerMic(){
+  escuchando = false;
+  $("iaMic").classList.remove("escuchando");
+}
+
+$("iaMic").addEventListener("click", ()=>{
+  const out = $("iaOut");
+  if(!SR){ out.textContent = "Tu navegador no permite dictado por voz. Prueba con Chrome, Edge o Safari."; return; }
+  if(escuchando){ try{ reconocimiento.stop(); }catch(e){} return; }
+
+  // Desbloquea la voz en iPhone (necesita un toque de la persona) y corta cualquier lectura en curso
+  try{ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance("")); }catch(e){}
+
+  preguntoPorVoz = false;
+  reconocimiento = new SR();
+  reconocimiento.lang = "es-MX";
+  reconocimiento.interimResults = true;
+  reconocimiento.maxAlternatives = 1;
+  reconocimiento.continuous = false;
+  let textoFinal = "";
+
+  reconocimiento.onstart = ()=>{
+    escuchando = true;
+    $("iaMic").classList.add("escuchando");
+    out.textContent = "Escuchando…";
+  };
+  reconocimiento.onresult = e=>{
+    let parcial = "";
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const t = e.results[i][0].transcript;
+      if(e.results[i].isFinal) textoFinal += t; else parcial += t;
+    }
+    $("iaq").value = (textoFinal + parcial).trim();
+  };
+  reconocimiento.onerror = e=>{
+    detenerMic();
+    if(e.error === "not-allowed" || e.error === "service-not-allowed") out.textContent = "Permite el micrófono en tu navegador para usar la voz.";
+    else if(e.error === "no-speech") out.textContent = "No te escuché. Intenta de nuevo.";
+    else if(e.error === "network") out.textContent = "El dictado no funciona en este navegador. Prueba con Chrome, Edge o Safari.";
+    else out.textContent = "No se pudo usar el micrófono.";
+  };
+  reconocimiento.onend = ()=>{
+    detenerMic();
+    const pregunta = $("iaq").value.trim();
+    if(textoFinal.trim() && pregunta){
+      preguntoPorVoz = true;
+      preguntarIA(pregunta);
+    } else if(out.textContent === "Escuchando…"){
+      out.textContent = "No te escuché. Intenta de nuevo.";
+    }
+  };
+  try{ reconocimiento.start(); }catch(e){ detenerMic(); }
+});
 
 $("iaBtn").addEventListener("click", ()=> preguntarIA($("iaq").value));
 $("iaq").addEventListener("keydown", e=>{ if(e.key === "Enter") preguntarIA($("iaq").value); });
