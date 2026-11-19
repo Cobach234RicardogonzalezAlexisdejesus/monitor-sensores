@@ -107,8 +107,7 @@
     <button id="iaMic" title="Hablar" aria-label="Hablar">🎤</button>
     <button id="iaBtn">Preguntar</button>
   </div>
-  <label class="vozlbl"><input type="checkbox" id="iaVoz"> 🔊 Leer respuestas en voz alta</label>
-  <div class="volrow">
+    <div class="volrow">
     <span>🔈 Volumen</span>
     <input type="range" id="iaVol" min="0" max="100" value="100" aria-label="Volumen de la voz">
     <span id="iaVolTxt">100</span>
@@ -358,6 +357,8 @@ async function preguntarIA(texto){
 
   iaOcupada = true;
   $("iaBtn").disabled = true;
+  // Desbloquea la voz en iPhone: debe ocurrir dentro del toque de la persona, antes de esperar la respuesta
+  try{ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance("")); }catch(e){}
   out.textContent = "Pensando…";
   try{
     const r = await fetch(URL_IA, {
@@ -372,7 +373,7 @@ async function preguntarIA(texto){
     });
     const d = await r.json();
     out.textContent = r.ok ? d.respuesta : (d.error || "No se pudo obtener respuesta.");
-    if(r.ok && ($("iaVoz").checked || preguntoPorVoz)) hablar(d.respuesta);
+    if(r.ok) hablar(d.respuesta);
     preguntoPorVoz = false;
   }catch(e){
     out.textContent = "No se pudo conectar con el asistente.";
@@ -398,8 +399,6 @@ $("iaVol").addEventListener("input", ()=>{
   $("iaVolTxt").textContent = $("iaVol").value;
   try{ localStorage.setItem("iaVol", $("iaVol").value); }catch(e){}
 });
-// Al soltar la barra, dice una frase corta para probar el volumen
-$("iaVol").addEventListener("change", ()=> hablar("Prueba de volumen"));
 
 function hablar(texto){
   if(!("speechSynthesis" in window) || !texto) return;
