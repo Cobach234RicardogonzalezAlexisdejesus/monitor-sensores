@@ -489,6 +489,7 @@ function guardarLocal(t, h, g, n){
 
 // ---------- Posible origen de la alarma (suposición con reglas, no identifica el gas exacto) ----------
 const UMBRAL_TEMP = 35;   // °C, el mismo del ESP32
+const UMBRAL_HUM_VAPOR = 85;   // % de humedad: de aquí en adelante, gas + humedad se interpreta como vapor
 function tendenciaGas(h){
   if(h.length < 10) return "insuficiente";
   const k = Math.min(5, Math.floor(h.length/3));
@@ -501,7 +502,9 @@ function origenAlarma(temp, hum, gas){
   const gasAlto = gas > cfg.ualarm;
   const tempAlta = !isNaN(temp) && temp > UMBRAL_TEMP;
   const humAlta = !isNaN(hum) && hum > 76;
+  const humVapor = !isNaN(hum) && hum >= UMBRAL_HUM_VAPOR;
   const gasActivo = gasAlto || t === "sube_rapido";
+  if(humVapor && gasActivo) return ["Vapor o ambiente húmedo", "La humedad es muy alta (" + UMBRAL_HUM_VAPOR + " % o más) y el vapor de agua hace que el sensor de gas marque de más. Lo más probable es que no sea un gas peligroso."];
   if(tempAlta && gasActivo) return ["Combustión, humo o fuego", "El gas y la temperatura están altos a la vez. Podría haber algo quemándose."];
   if(humAlta && gasActivo)  return ["Aerosol", "El gas subió junto con la humedad (mayor a 76 %). Podría ser un aerosol, como un desodorante o ambientador."];
   if(t === "sube_rapido")   return ["Fuga de gas o alcohol", "El gas sube rápido y la temperatura no está alta. Podría ser una fuga de gas o vapor de alcohol."];
@@ -925,6 +928,45 @@ $("iaBorrar").addEventListener("click", ()=>{
   }
 });
 
+// Resumen del historial guardado en este dispositivo (gratis: no usa servidor ni KV). Lo recibe el Worker junto con la pregunta.
+function resumenLocal(){
+  if(histLocal.length < 3) return [];
+  const ahora = Math.floor(Date.now()/1000);
+  const dur = s => s < 60 ? Math.round(s) + " segundos" : s < 3600 ? Math.round(s/60) + " min" : Math.floor(s/3600) + " h " + Math.round((s%3600)/60) + " min";
+  const hm = ts => { const d = new Date(ts*1000); return p2(d.getHours()) + ":" + p2(d.getMinutes()) + " del " + p2(d.getDate()) + "/" + p2(d.getMonth()+1); };
+  const lineas = ["Registro guardado en el dispositivo, con datos desde hace " + dur(ahora - histLocal[0][0]) + " (solo se guarda mientras la página está abierta, así que puede tener huecos)."];
+  [[3600,"Última hora"],[21600,"Últimas 6 h"],[86400,"Últimas 24 h"]].forEach(([seg, nombre])=>{
+    const arr = histLocal.filter(p => p[0] >= ahora - seg);
+    if(!arr.length){ lineas.push(nombre + ": sin lecturas registradas."); return; }
+    const st = i => {
+      const v = arr.map(p => p[i]).filter(x => typeof x === "number" && isFinite(x));
+      return v.length ? { min:Math.min(...v), max:Math.max(...v), avg:v.reduce((a,b)=>a+b,0)/v.length } : null;
+    };
+    const g = st(3), t = st(1), h = st(2);
+    const pico = arr.find(p => p[3] === g.max);
+    // Tendencia del gas: promedio del primer cuarto contra el del último cuarto
+    const k = Math.max(1, Math.floor(arr.length/4));
+    const pr = a => a.reduce((s,p)=>s+p[3],0) / a.length;
+    const dl = pr(arr.slice(-k)) - pr(arr.slice(0,k));
+    const tend = arr.length < 4 ? "sin tendencia clara" : dl > 200 ? "subiendo" : dl < -200 ? "bajando" : "estable";
+    let alarmaS = 0, critS = 0;
+    arr.forEach((p,i)=>{
+      const sig = arr[i+1] ? arr[i+1][0] : p[0] + 3;
+      const d = Math.min(sig - p[0], 60);
+      const n = nivelDe(p);
+      if(n >= 1) alarmaS += d;
+      if(n === 2) critS += d;
+    });
+    let l = nombre + ": " + arr.length + " lecturas; ";
+    if(t) l += "temperatura promedio " + t.avg.toFixed(1) + " °C (mín " + t.min.toFixed(1) + ", máx " + t.max.toFixed(1) + "); ";
+    if(h) l += "humedad promedio " + Math.round(h.avg) + " % (mín " + Math.round(h.min) + ", máx " + Math.round(h.max) + "); ";
+    l += "gas promedio " + Math.round(g.avg) + " (mín " + g.min + ", máx " + g.max + "), pico a las " + hm(pico[0]) + ", tendencia " + tend + "; ";
+    l += alarmaS ? "en alarma unos " + dur(alarmaS) + (critS ? " (" + dur(critS) + " en crítico)" : "") : "sin alarmas";
+    lineas.push(l + ".");
+  });
+  return lineas;
+}
+
 // Asistente: manda las lecturas y la pregunta al Worker, que consulta a la IA
 async function preguntarIA(texto){
   const out = $("iaOut");
@@ -953,7 +995,8 @@ async function preguntarIA(texto){
         ualarm: cfg.ualarm, ucrit: cfg.ucrit,
         historial: historial.slice(-60),
         histTemp: histT.slice(-60), histHum: histH.slice(-60),
-        conversacion: conv.slice(-8)
+        conversacion: conv.slice(-8),
+        resumenLocal: resumenLocal()
       })
     });
     const d = await r.json();
