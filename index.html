@@ -44,7 +44,7 @@
   @keyframes barRojo{50%{background:#fecaca;box-shadow:0 0 12px 3px rgba(220,38,38,.8)}}
   .fill.alarma{animation:barNaranja .8s infinite}
   .fill.critico{animation:barRojo .5s infinite}
-  @media (prefers-reduced-motion: reduce){ .b1,.b2,.fill.alarma,.fill.critico{animation:none} }
+  @media (prefers-reduced-motion: reduce){ .b1,.b2,.o1,.o2,.fill.alarma,.fill.critico{animation:none} }
 
   /* Lecturas en vivo */
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
@@ -196,8 +196,10 @@
   .origen.on{display:block}
   .origen b{display:block;font-size:1rem;margin-bottom:2px}
   .origen small{display:block;opacity:.8;margin-top:4px;font-size:.75rem}
-  .o1{background:#fef3c7;border:1px solid var(--warn);color:#92400e}
-  .o2{background:#fee2e2;border:1px solid var(--crit);color:#991b1b}
+  .o0{background:#dcfce7;border:1px solid var(--ok);color:#166534}
+  .o1{background:#fef3c7;border:1px solid var(--warn);color:#92400e;animation:parpNaranja .8s infinite}
+  .o2{background:#fee2e2;border:1px solid var(--crit);color:#991b1b;animation:parpRojo .5s infinite}
+  :root[data-tema="oscuro"] .o0{background:#052e16;color:#86efac}
   :root[data-tema="oscuro"] .o1{background:#422006;color:#fcd34d}
   :root[data-tema="oscuro"] .o2{background:#450a0a;color:#fca5a5}
 
@@ -498,20 +500,25 @@ function origenAlarma(temp, hum, gas){
   const t = tendenciaGas(historial);
   const gasAlto = gas > cfg.ualarm;
   const tempAlta = !isNaN(temp) && temp > UMBRAL_TEMP;
-  const humAlta = !isNaN(hum) && hum > 80;
+  const humAlta = !isNaN(hum) && hum > 76;
   const gasActivo = gasAlto || t === "sube_rapido";
   if(tempAlta && gasActivo) return ["Combustión, humo o fuego", "El gas y la temperatura están altos a la vez. Podría haber algo quemándose."];
-  if(humAlta && gasActivo)  return ["Aerosol", "El gas subió junto con la humedad (mayor a 80 %). Podría ser un aerosol, como un desodorante o ambientador."];
+  if(humAlta && gasActivo)  return ["Aerosol", "El gas subió junto con la humedad (mayor a 76 %). Podría ser un aerosol, como un desodorante o ambientador."];
   if(t === "sube_rapido")   return ["Fuga de gas o alcohol", "El gas sube rápido y la temperatura no está alta. Podría ser una fuga de gas o vapor de alcohol."];
   if(t === "sube" && gas > cfg.ualarm/2) return ["Gas acumulado", "El gas va subiendo lento pero de forma sostenida. Podría estarse acumulando en el lugar."];
   if(gasAlto)  return ["Gas alto sin causa clara", "El gas está sobre el umbral pero no coincide con ninguna situación conocida."];
   if(tempAlta) return ["Calor sin gas", "La alarma es por temperatura y el gas está normal. Revisa si hay una fuente de calor cerca."];
-  return null;
+  return ["Causa no identificada", "El sistema reporta alarma, pero las lecturas no coinciden con ninguna situación conocida."];
 }
 function mostrarOrigen(conectado, nivelFinal, temp, hum, gas){
   const el = $("origen");
-  const o = (conectado && nivelFinal >= 1 && !isNaN(gas)) ? origenAlarma(temp, hum, gas) : null;
-  if(!o){ el.className = "origen"; el.innerHTML = ""; return; }
+  if(!conectado || isNaN(gas)){ el.className = "origen"; el.innerHTML = ""; return; }
+  if(nivelFinal < 1){
+    el.className = "origen on o0";
+    el.innerHTML = "<b>Ninguna fuga detectada</b>";
+    return;
+  }
+  const o = origenAlarma(temp, hum, gas);
   el.className = "origen on " + (nivelFinal === 2 ? "o2" : "o1");
   el.innerHTML = "<b>Posible origen: " + o[0] + "</b>" + o[1] +
                  "<small>Es una suposición: los sensores no identifican el tipo exacto de gas.</small>";
