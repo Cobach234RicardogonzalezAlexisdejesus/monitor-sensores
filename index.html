@@ -22,10 +22,17 @@
   .banner{border-radius:12px;padding:16px;font-weight:700;font-size:1.15rem;text-align:center;margin-bottom:14px;transition:background .3s}
   .banner small{display:block;font-weight:400;font-size:.8rem;opacity:.9;margin-top:2px}
   .b0{background:#dcfce7;border:1px solid var(--ok);color:#166534}
-  .b1{background:#fef3c7;border:1px solid var(--warn);color:#92400e}
-  .b2{background:#fee2e2;border:1px solid var(--crit);color:#991b1b;animation:pulse .8s infinite}
+  .b1{background:#fef3c7;border:1px solid var(--warn);color:#92400e;animation:parpNaranja .8s infinite}
+  .b2{background:#fee2e2;border:1px solid var(--crit);color:#991b1b;animation:parpRojo .5s infinite}
   .boff{background:var(--head);border:1px solid #9ca3af;color:var(--sub)}
   @keyframes pulse{50%{background:#fecaca}}
+  @keyframes parpNaranja{50%{background:#fdba74;box-shadow:0 0 0 4px rgba(217,119,6,.35)}}
+  @keyframes parpRojo{50%{background:#fca5a5;box-shadow:0 0 0 5px rgba(220,38,38,.4)}}
+  @keyframes barNaranja{50%{background:#fed7aa;box-shadow:0 0 10px 2px rgba(217,119,6,.7)}}
+  @keyframes barRojo{50%{background:#fecaca;box-shadow:0 0 12px 3px rgba(220,38,38,.8)}}
+  .fill.alarma{animation:barNaranja .8s infinite}
+  .fill.critico{animation:barRojo .5s infinite}
+  @media (prefers-reduced-motion: reduce){ .b1,.b2,.fill.alarma,.fill.critico{animation:none} }
 
   /* Lecturas en vivo */
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
@@ -37,10 +44,15 @@
   #vg{font-size:2rem;font-weight:700;color:var(--txt)}
   .bar{position:relative;height:14px;background:#e5e7eb;border-radius:7px;margin-top:12px;overflow:hidden}
   .fill{height:100%;width:0;background:var(--ok);transition:width .4s,background .4s}
-  .mark{position:absolute;top:0;bottom:0;width:2px;background:#374151;opacity:.7}
+  .mark{position:absolute;top:0;bottom:0;width:3px;background:#374151;opacity:.85}
   .legend{display:flex;justify-content:space-between;font-size:.72rem;color:var(--sub);margin-top:4px}
+  .tk{position:absolute;top:0;bottom:0;width:1px;background:rgba(17,24,39,.22)}
+  .ticks{position:relative;height:14px;margin-top:4px;font-size:.66rem;color:var(--sub)}
+  .ticks span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+  .umbrales{position:relative;height:34px;margin-top:2px;font-size:.72rem;font-weight:600}
+  .umbrales span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+  .mark{z-index:2}
   canvas{width:100%;display:block}
-  #chart{height:170px;margin-top:8px}
   .status{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--sub);margin:4px 2px 22px}
   .dot{width:10px;height:10px;border-radius:50%;background:#9ca3af}
   .dot.on{background:var(--ok)} .dot.off{background:var(--crit)}
@@ -103,6 +115,36 @@
   .volrow #iaVolTxt{min-width:2.2em;text-align:right;color:var(--txt)}
   .iaout{margin-top:12px;font-size:.92rem;line-height:1.5;white-space:pre-wrap;min-height:1.2em}
 
+  /* Asistente a pantalla completa (estilo chat) */
+  #iaPanel{position:fixed;inset:0;z-index:100;background:var(--card);display:none;flex-direction:column}
+  #iaPanel.abierto{display:flex}
+  .iahead{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--line);background:var(--card)}
+  .iahead h2{flex:1;font-size:1.05rem;margin:0}
+  .iahead .vol{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--sub)}
+  .iahead .vol input{width:80px;padding:0;border:0;background:none;accent-color:var(--acc)}
+  .iahead button{border:0;background:#f3f4f6;color:#374151;border-radius:8px;padding:7px 10px;font-size:.95rem;cursor:pointer}
+  #iaCerrar{font-size:1.2rem;line-height:1;padding:6px 12px}
+  #iaMsgs{flex:1;overflow-y:auto;padding:18px 14px;-webkit-overflow-scrolling:touch}
+  .iainner{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+  .msg{line-height:1.6;font-size:.95rem;white-space:pre-wrap;word-wrap:break-word}
+  .msg.user{align-self:flex-end;max-width:82%;background:#dbeafe;color:#1e3a8a;padding:10px 16px;border-radius:18px}
+  .msg.bot{align-self:flex-start;max-width:100%}
+  .msg.bot.pensando{color:var(--sub);animation:pulso 1.2s infinite}
+  .msg.bot.error{color:#b91c1c}
+  @keyframes pulso{50%{opacity:.4}}
+  .iabienvenida{color:var(--sub);text-align:center;margin-top:10vh;font-size:.95rem;line-height:1.5}
+  .iabienvenida b{display:block;color:var(--txt);font-size:1.15rem;margin-bottom:6px}
+  .iafoot{border-top:1px solid var(--line);padding:8px 14px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--card)}
+  .iafoot .inner{max-width:760px;margin:0 auto}
+  .iafoot .chips{margin:0 0 8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
+  .iafoot .chip{white-space:nowrap;flex:0 0 auto}
+  .iaestado{font-size:.8rem;color:var(--sub);min-height:1.1em;margin-bottom:4px}
+  .iabar{display:flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:999px;padding:5px 6px 5px 14px;background:#fff}
+  .iabar input{flex:1;border:0;padding:8px 0;background:none;outline:none}
+  .iabar #iaMic{width:38px;height:38px;border-radius:50%;padding:0}
+  .iabar #iaBtn{width:38px;height:38px;border-radius:50%;padding:0;font-size:1rem}
+  #abrirIA{width:100%;margin-top:10px;font-size:1rem;padding:12px}
+
   @media (max-width:760px){
     .stats,.graficas{grid-template-columns:1fr}
     .encab h2{font-size:1.25rem}
@@ -128,11 +170,8 @@
       <div id="mAlarm" class="mark"></div>
       <div id="mCrit" class="mark"></div>
     </div>
-    <div class="legend"><span>0</span><span id="lAlarm"></span><span id="lCrit"></span><span>4095</span></div>
-  </div>
-  <div class="card full">
-    <div class="lbl">Gas · últimos minutos</div>
-    <canvas id="chart"></canvas>
+    <div class="ticks" id="ticks"></div>
+    <div class="umbrales" id="umbrales"></div>
   </div>
 </div>
 
@@ -195,26 +234,35 @@
   </div>
 </div>
 
-<!-- Asistente -->
+<!-- Asistente: tarjeta que abre el chat a pantalla completa -->
 <div class="card" id="iaCard" style="margin-top:14px">
   <div class="lbl">Asistente</div>
-  <div class="chips">
-    <button class="chip" data-q="Explica en palabras simples cómo van las lecturas ahora.">Explicar lecturas</button>
-    <button class="chip" data-q="¿Ves alguna tendencia en el gas de los últimos minutos?">Tendencia</button>
-    <button class="chip" data-q="¿Qué debo hacer con estos valores?">¿Qué hago?</button>
-    <button class="chip" data-q="¿Cuándo fue el valor más alto de gas hoy y cuánto tiempo estuvo en alarma?">Pico de hoy</button>
+  <div style="color:var(--sub);font-size:.9rem;margin-top:6px">Pregunta sobre las lecturas y consulta todas tus respuestas anteriores.</div>
+  <button class="btn" id="abrirIA">🤖 Abrir asistente</button>
+</div>
+
+<div id="iaPanel" role="dialog" aria-label="Asistente" aria-modal="true">
+  <div class="iahead">
+    <h2>🤖 Asistente</h2>
+    <div class="vol">🔈<input type="range" id="iaVol" min="0" max="100" value="100" aria-label="Volumen de la voz"><span id="iaVolTxt">100</span></div>
+    <button id="iaBorrar" title="Borrar conversación" aria-label="Borrar conversación">🗑</button>
+    <button id="iaCerrar" title="Cerrar" aria-label="Cerrar asistente">✕</button>
   </div>
-  <div class="iarow">
-    <input id="iaq" placeholder="Pregunta sobre las lecturas…" maxlength="300" autocomplete="off">
-    <button id="iaMic" title="Hablar" aria-label="Hablar">🎤</button>
-    <button id="iaBtn">Preguntar</button>
-  </div>
-  <div class="volrow">
-    <span>🔈 Volumen</span>
-    <input type="range" id="iaVol" min="0" max="100" value="100" aria-label="Volumen de la voz">
-    <span id="iaVolTxt">100</span>
-  </div>
-  <div id="iaOut" class="iaout"></div>
+  <div id="iaMsgs"><div class="iainner" id="iaLista"></div></div>
+  <div class="iafoot"><div class="inner">
+    <div class="chips">
+      <button class="chip" data-q="Explica en palabras simples cómo van las lecturas ahora.">Explicar lecturas</button>
+      <button class="chip" data-q="¿Ves alguna tendencia en el gas de los últimos minutos?">Tendencia</button>
+      <button class="chip" data-q="¿Qué debo hacer con estos valores?">¿Qué hago?</button>
+      <button class="chip" data-q="¿Cuándo fue el valor más alto de gas hoy y cuánto tiempo estuvo en alarma?">Pico de hoy</button>
+    </div>
+    <div id="iaOut" class="iaestado"></div>
+    <div class="iabar">
+      <input id="iaq" placeholder="Pregunta sobre las lecturas…" maxlength="300" autocomplete="off">
+      <button id="iaMic" title="Hablar" aria-label="Hablar">🎤</button>
+      <button id="iaBtn" title="Enviar" aria-label="Enviar">➤</button>
+    </div>
+  </div></div>
 </div>
 
 <!-- QR: visible para todos -->
@@ -289,10 +337,27 @@ function aplicarCfgEnPantalla(){
   $("server").value = cfg.server;
   $("ualarm").value = cfg.ualarm;
   $("ucrit").value = cfg.ucrit;
-  $("lAlarm").textContent = cfg.ualarm;
-  $("lCrit").textContent = cfg.ucrit;
-  $("mAlarm").style.left = (cfg.ualarm/4095*100)+"%";
-  $("mCrit").style.left = (cfg.ucrit/4095*100)+"%";
+  const pos = v => Math.min(100, Math.max(0, v/4095*100));
+  $("mAlarm").style.left = "calc(" + pos(cfg.ualarm) + "% - 1px)";
+  $("mCrit").style.left  = "calc(" + pos(cfg.ucrit)  + "% - 1px)";
+  $("mAlarm").style.background = "var(--warn)";
+  $("mCrit").style.background  = "var(--crit)";
+
+  // Escala de 500 en 500 (marcas dentro de la barra y números debajo)
+  const bar = document.querySelector(".bar");
+  bar.querySelectorAll(".tk").forEach(e => e.remove());
+  let ticks = "";
+  for(let v = 0; v <= 4000; v += 500){
+    if(v === 2500 || v === 3500) continue;   // para que no choquen con Alarma y Crítico
+    const t = document.createElement("div"); t.className = "tk"; t.style.left = pos(v) + "%";
+    bar.appendChild(t);
+    const alin = v === 0 ? "transform:none" : "";
+    ticks += '<span style="left:' + pos(v) + '%;' + alin + '">' + v + '</span>';
+  }
+  $("ticks").innerHTML = ticks;
+  $("umbrales").innerHTML =
+    '<span style="left:' + pos(cfg.ualarm) + '%;color:var(--warn)">Alarma ' + cfg.ualarm + '</span>' +
+    '<span style="left:' + pos(cfg.ucrit)  + '%;top:17px;transform:translateX(-80%);color:var(--crit)">Alarma crítica ' + cfg.ucrit + '</span>';
 }
 
 function banner(clase, titulo, sub){
@@ -318,11 +383,18 @@ try{ histLocal = JSON.parse(localStorage.getItem("histLocal") || "[]"); if(!Arra
 let ultLocal = 0;
 function guardarLocal(t, h, g, n){
   const ahora = Math.floor(Date.now()/1000);
-  if(ahora - ultLocal < 30) return;
+  const alto = n > 0 || g > cfg.ualarm;           // sobre el umbral de alarma (2400 hacia arriba)
+  if(alto){ if(ahora - ultLocal < 3) return; }    // valores altos: un informe cada 3 segundos
+  else if(ahora - ultLocal < 60) return;          // lecturas normales: una por minuto
   ultLocal = ahora;
   histLocal.push([ahora, isNaN(t) ? null : t, isNaN(h) ? null : h, g, n]);
   const corte = ahora - 30*86400;
-  while(histLocal.length > 4000 || (histLocal.length && histLocal[0][0] < corte)) histLocal.shift();
+  while(histLocal.length && histLocal[0][0] < corte) histLocal.shift();
+  // Si se llena, se borran primero las lecturas normales más viejas para conservar las altas
+  while(histLocal.length > 6000){
+    const i = histLocal.findIndex(p => !(p[4] > 0 || p[3] > cfg.ualarm));
+    histLocal.splice(i === -1 ? 0 : i, 1);
+  }
   try{ localStorage.setItem("histLocal", JSON.stringify(histLocal)); }catch(e){}
 }
 
@@ -349,9 +421,10 @@ async function actualizar(){
       const f = $("fill");
       f.style.width = pct + "%";
       f.style.background = gas >= cfg.ucrit ? "var(--crit)" : gas > cfg.ualarm ? "var(--warn)" : "var(--ok)";
+      f.classList.toggle("critico", gas >= cfg.ucrit);
+      f.classList.toggle("alarma", gas > cfg.ualarm && gas < cfg.ucrit);
       historial.push(gas);
       if(historial.length > MAX_PUNTOS) historial.shift();
-      dibujar();
     }
 
     // Nivel final: el mayor entre lo que reporta el ESP32 (V3) y lo que indica el gas con los umbrales A y B
@@ -382,40 +455,13 @@ async function actualizar(){
   }
 }
 
-// Gráfica en vivo del gas (últimos minutos)
-function dibujar(){
-  const c = $("chart");
-  const dpr = window.devicePixelRatio || 1;
-  const w = c.clientWidth, h = c.clientHeight;
-  c.width = w*dpr; c.height = h*dpr;
-  const g = c.getContext("2d");
-  g.scale(dpr, dpr);
-  g.clearRect(0,0,w,h);
-
-  const y = v => h - 8 - (v/4095)*(h-16);
-
-  // Líneas de umbral
-  g.setLineDash([5,4]); g.lineWidth = 1;
-  g.strokeStyle = "#d97706"; g.beginPath(); g.moveTo(0,y(cfg.ualarm)); g.lineTo(w,y(cfg.ualarm)); g.stroke();
-  g.strokeStyle = "#dc2626"; g.beginPath(); g.moveTo(0,y(cfg.ucrit));  g.lineTo(w,y(cfg.ucrit));  g.stroke();
-  g.setLineDash([]);
-
-  if(historial.length < 2) return;
-  g.strokeStyle = "#2563eb"; g.lineWidth = 2; g.beginPath();
-  historial.forEach((v,i)=>{
-    const x = i/(MAX_PUNTOS-1)*w;
-    i ? g.lineTo(x,y(v)) : g.moveTo(x,y(v));
-  });
-  g.stroke();
-}
-
 // ---------- Análisis e historial ----------
 const RANGOS = { "1h":3600, "6h":21600, "24h":86400, "7d":604800, "30d":2592000 };
 let rango = "24h";
 try{ const g = localStorage.getItem("rango"); if(RANGOS[g]) rango = g; }catch(e){}
 let lecturas = [];      // [ts, temp, hum, gas, nivel], de la más antigua a la más reciente
 let pagTabla = 0;
-const POR_PAG = 50;
+const POR_PAG = 5;
 
 const p2 = n => String(n).padStart(2, "0");
 function fechaCorta(ts){
@@ -608,7 +654,13 @@ async function cargarHistorial(){
   }catch(e){}
 
   if(pts.length >= 2){
-    fuente = "Datos del servidor, una lectura cada 5 minutos.";
+    fuente = "Datos del servidor, una lectura cada 5 minutos. Los valores altos se agregan siempre.";
+    // El servidor guarda cada 5 min; aquí se agregan las lecturas altas de este dispositivo para que no se pierda ninguna
+    const desdeS = Math.floor(Date.now()/1000) - seg;
+    const yaEsta = new Set(pts.map(p => p[0]));
+    histLocal.forEach(p => {
+      if(p[0] >= desdeS && (p[4] > 0 || p[3] > cfg.ualarm) && !yaEsta.has(p[0])) pts.push(p);
+    });
   } else {
     const desde = Math.floor(Date.now()/1000) - seg;
     pts = histLocal.filter(p => p[0] >= desde);
@@ -696,6 +748,58 @@ $("btnQR").addEventListener("click", ()=>{
 let conv = [];
 try{ conv = JSON.parse(sessionStorage.getItem("iaConv") || "[]"); if(!Array.isArray(conv)) conv = []; }catch(e){ conv = []; }
 
+// Historial visible del chat (se guarda en este navegador para poder releer respuestas)
+let chat = [];
+try{ chat = JSON.parse(localStorage.getItem("iaChat") || "[]"); if(!Array.isArray(chat)) chat = []; }catch(e){ chat = []; }
+function guardarChat(){
+  if(chat.length > 100) chat.splice(0, chat.length - 100);
+  try{ localStorage.setItem("iaChat", JSON.stringify(chat)); }catch(e){}
+}
+function bajarChat(){ const m = $("iaMsgs"); m.scrollTop = m.scrollHeight; }
+function burbuja(rol, texto){
+  const lista = $("iaLista");
+  const bien = lista.querySelector(".iabienvenida"); if(bien) bien.remove();
+  const d = document.createElement("div");
+  d.className = "msg " + rol;
+  d.textContent = texto;
+  lista.appendChild(d);
+  bajarChat();
+  return d;
+}
+function pintarChat(){
+  const lista = $("iaLista");
+  lista.innerHTML = "";
+  if(!chat.length){
+    lista.innerHTML = '<div class="iabienvenida"><b>¿En qué te ayudo?</b>Pregunta sobre temperatura, humedad o gas.<br>Todas las respuestas se quedan aquí para que las puedas releer.</div>';
+    return;
+  }
+  chat.forEach(m => burbuja(m.rol === "user" ? "user" : "bot", m.texto));
+}
+
+// Abrir y cerrar el asistente
+function abrirAsistente(){
+  $("iaPanel").classList.add("abierto");
+  document.body.style.overflow = "hidden";
+  pintarChat();
+  bajarChat();
+}
+function cerrarAsistente(){
+  $("iaPanel").classList.remove("abierto");
+  document.body.style.overflow = "";
+  try{ speechSynthesis.cancel(); }catch(e){}
+  try{ if(escuchando) reconocimiento.abort(); }catch(e){}
+}
+$("abrirIA").addEventListener("click", abrirAsistente);
+$("iaCerrar").addEventListener("click", cerrarAsistente);
+document.addEventListener("keydown", e=>{ if(e.key === "Escape" && $("iaPanel").classList.contains("abierto")) cerrarAsistente(); });
+$("iaBorrar").addEventListener("click", ()=>{
+  if(!chat.length || confirm("¿Borrar toda la conversación?")){
+    chat = []; conv = []; guardarChat();
+    try{ sessionStorage.removeItem("iaConv"); }catch(e){}
+    pintarChat();
+  }
+});
+
 // Asistente: manda las lecturas y la pregunta al Worker, que consulta a la IA
 async function preguntarIA(texto){
   const out = $("iaOut");
@@ -709,7 +813,11 @@ async function preguntarIA(texto){
   $("iaBtn").disabled = true;
   // Desbloquea la voz en iPhone: debe ocurrir dentro del toque de la persona, antes de esperar la respuesta
   try{ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance("")); }catch(e){}
-  out.textContent = "Pensando…";
+  out.textContent = "";
+  burbuja("user", texto);
+  $("iaq").value = "";
+  const resp = burbuja("bot", "Pensando…");
+  resp.classList.add("pensando");
   try{
     const r = await fetch(URL_IA, {
       method: "POST",
@@ -723,17 +831,26 @@ async function preguntarIA(texto){
       })
     });
     const d = await r.json();
-    out.textContent = r.ok ? d.respuesta : (d.error || "No se pudo obtener respuesta.");
+    resp.classList.remove("pensando");
     if(r.ok){
+      resp.textContent = d.respuesta;
+      chat.push({ rol: "user", texto: texto }, { rol: "bot", texto: d.respuesta });
+      guardarChat();
       conv.push({ rol: "user", texto: texto }, { rol: "assistant", texto: d.respuesta });
       if(conv.length > 12) conv.splice(0, conv.length - 12);
       try{ sessionStorage.setItem("iaConv", JSON.stringify(conv)); }catch(e){}
       hablar(d.respuesta);
+    } else {
+      resp.textContent = d.error || "No se pudo obtener respuesta.";
+      resp.classList.add("error");
     }
     preguntoPorVoz = false;
   }catch(e){
-    out.textContent = "No se pudo conectar con el asistente.";
+    resp.classList.remove("pensando");
+    resp.textContent = "No se pudo conectar con el asistente.";
+    resp.classList.add("error");
   }
+  bajarChat();
   setTimeout(()=>{ iaOcupada = false; $("iaBtn").disabled = false; }, 4000);
 }
 
@@ -757,8 +874,8 @@ $("iaVol").addEventListener("input", ()=>{
 });
 
 // Elige una voz femenina en español (según el nombre, porque el navegador no indica el género)
-const NOM_MUJER = /sabina|paulina|helena|laura|m[oó]nica|luc[ií]a|elvira|dalia|camila|marisol|salom[eé]|elena|carmen|female|femenin|mujer|google espa|siri|angelica|ang[eé]lica|marta|paloma|esperanza|catalina|valentina|isabella|ximena|tessa/i;
-const NOM_HOMBRE = /ra[uú]l|pablo|jorge|diego|juan|carlos|enrique|andr[eé]s|alvaro|álvaro|male|masculin|hombre|jaime|pedro|miguel|lorenzo|tom[aá]s|rodrigo|alberto|luis|jos[eé]/i;
+const NOM_MUJER = /sabina|paulina|helena|laura|m[oó]nica|luc[ií]a|elvira|dalia|camila|marisol|salom[eé]|elena|carmen|female|femenin|mujer|google espa|siri|angelica|ang[eé]lica|marta|paloma|esperanza|catalina|valentina|isabella|ximena|tessa|abril|nuria|lorena|fernanda|karina|lourdes|margarita|ramona|sof[ií]a|yolanda|maribel|larissa|estrella|belkys|triana|ines|in[eé]s/i;
+const NOM_HOMBRE = /ra[uú]l|pablo|jorge|diego|juan|carlos|enrique|andr[eé]s|alvaro|álvaro|male|masculin|hombre|jaime|pedro|miguel|lorenzo|tom[aá]s|rodrigo|alberto|luis|jos[eé]|n[eé]stor|oscar|gonzalo|manuel|emilio|ricardo|ernesto|sergio|alejandro|arnau|c[eé]sar|leandro|santiago|facundo|mateo/i;
 function vozMujer(){
   let voces = [];
   try{ voces = speechSynthesis.getVoices() || []; }catch(e){}
@@ -793,21 +910,48 @@ function detenerMic(){
   $("iaMic").classList.remove("escuchando");
 }
 
+// Ayudas para el micrófono: detecta navegadores problemáticos y pide el permiso explícitamente
+const ES_WEBVIEW = /FBAN|FBAV|Instagram|WhatsApp|Line\/|MicroMessenger|Messenger|TikTok|Snapchat|Telegram|; wv\)/i.test(navigator.userAgent);
+const AYUDA_PERMISO = "El micrófono está bloqueado. Toca el candado (o el icono de ajustes) junto a la dirección de la página, activa Micrófono y recarga.";
+
+async function pedirPermisoMic(out){
+  // Algunos navegadores no muestran el aviso con el dictado; getUserMedia sí lo muestra
+  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){ out.textContent = AYUDA_PERMISO; return; }
+  try{
+    const st = await navigator.mediaDevices.getUserMedia({ audio:true });
+    st.getTracks().forEach(t => t.stop());
+    out.textContent = "Listo, permiso concedido. Toca el micrófono otra vez para hablar.";
+  }catch(e){
+    if(e && (e.name === "NotFoundError" || e.name === "DevicesNotFoundError")) out.textContent = "No se encontró ningún micrófono en este dispositivo.";
+    else out.textContent = AYUDA_PERMISO;
+  }
+}
+
 $("iaMic").addEventListener("click", ()=>{
   const out = $("iaOut");
-  if(!SR){ out.textContent = "Tu navegador no permite dictado por voz. Prueba con Chrome, Edge o Safari."; return; }
   if(escuchando){ try{ reconocimiento.stop(); }catch(e){} return; }
+  if(ES_WEBVIEW){ out.textContent = "Este navegador integrado (de una app) no deja usar el micrófono. Abre la página en Chrome, Edge o Safari."; return; }
+  if(!window.isSecureContext){ out.textContent = "El micrófono solo funciona si la página se abre con https://"; return; }
+  if(!SR){
+    out.textContent = "Este navegador no permite dictado por voz (por ejemplo Firefox o Brave). Usa Chrome, Edge o Safari, o escribe tu pregunta.";
+    return;
+  }
 
   // Desbloquea la voz en iPhone (necesita un toque de la persona) y corta cualquier lectura en curso
   try{ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance("")); }catch(e){}
 
   preguntoPorVoz = false;
+  iniciarDictado(out, "es-MX");
+});
+
+function iniciarDictado(out, idioma){
   reconocimiento = new SR();
-  reconocimiento.lang = "es-MX";
+  reconocimiento.lang = idioma;
   reconocimiento.interimResults = true;
   reconocimiento.maxAlternatives = 1;
   reconocimiento.continuous = false;
   let textoFinal = "";
+  let reintento = false;
 
   reconocimiento.onstart = ()=>{
     escuchando = true;
@@ -824,12 +968,23 @@ $("iaMic").addEventListener("click", ()=>{
   };
   reconocimiento.onerror = e=>{
     detenerMic();
-    if(e.error === "not-allowed" || e.error === "service-not-allowed") out.textContent = "Permite el micrófono en tu navegador para usar la voz.";
+    if(e.error === "language-not-supported" && idioma !== "es-ES"){
+      reintento = true;
+      iniciarDictado(out, "es-ES");   // algunos navegadores no tienen es-MX
+      return;
+    }
+    if(e.error === "not-allowed" || e.error === "service-not-allowed"){
+      out.textContent = "Pidiendo permiso para el micrófono…";
+      pedirPermisoMic(out);
+    }
+    else if(e.error === "audio-capture") out.textContent = "No se encontró un micrófono, o otra app lo está usando.";
     else if(e.error === "no-speech") out.textContent = "No te escuché. Intenta de nuevo.";
-    else if(e.error === "network") out.textContent = "El dictado no funciona en este navegador. Prueba con Chrome, Edge o Safari.";
+    else if(e.error === "network") out.textContent = "El dictado necesita internet y no funciona en este navegador. Prueba con Chrome, Edge o Safari.";
+    else if(e.error === "aborted") { /* cancelado por la persona */ }
     else out.textContent = "No se pudo usar el micrófono.";
   };
   reconocimiento.onend = ()=>{
+    if(reintento) return;
     detenerMic();
     const pregunta = $("iaq").value.trim();
     if(textoFinal.trim() && pregunta){
@@ -839,8 +994,8 @@ $("iaMic").addEventListener("click", ()=>{
       out.textContent = "No te escuché. Intenta de nuevo.";
     }
   };
-  try{ reconocimiento.start(); }catch(e){ detenerMic(); }
-});
+  try{ reconocimiento.start(); }catch(e){ detenerMic(); out.textContent = "No se pudo iniciar el micrófono. Recarga la página e intenta de nuevo."; }
+}
 
 $("iaBtn").addEventListener("click", ()=> preguntarIA($("iaq").value));
 $("iaq").addEventListener("keydown", e=>{ if(e.key === "Enter") preguntarIA($("iaq").value); });
@@ -848,7 +1003,7 @@ document.querySelectorAll(".chip").forEach(b=>{
   b.addEventListener("click", ()=>{ $("iaq").value = b.dataset.q; preguntarIA(b.dataset.q); });
 });
 
-window.addEventListener("resize", ()=>{ dibujar(); dibujarGraficas(); });
+window.addEventListener("resize", ()=>{ dibujarGraficas(); });
 leerEnlace();
 document.body.classList.toggle("vista", !!cfg.vista);
 aplicarCfgEnPantalla();
