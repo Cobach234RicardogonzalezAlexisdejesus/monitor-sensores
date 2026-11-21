@@ -9,6 +9,12 @@
   :root{
     --bg:#f9fafb; --card:#ffffff; --txt:#111827; --sub:#6b7280; --line:#e5e7eb; --head:#f3f4f6;
     --ok:#16a34a; --warn:#d97706; --crit:#dc2626; --acc:#2563eb;
+    --f1:#fdba74; --f2:#fca5a5; color-scheme:light;
+  }
+  /* Modo oscuro */
+  :root[data-tema="oscuro"]{
+    --bg:#0f172a; --card:#1e293b; --txt:#e5e7eb; --sub:#94a3b8; --line:#334155; --head:#273449;
+    --f1:#92400e; --f2:#7f1d1d; color-scheme:dark;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:20px 16px 40px;max-width:1100px;margin-inline:auto}
@@ -26,8 +32,8 @@
   .b2{background:#fee2e2;border:1px solid var(--crit);color:#991b1b;animation:parpRojo .5s infinite}
   .boff{background:var(--head);border:1px solid #9ca3af;color:var(--sub)}
   @keyframes pulse{50%{background:#fecaca}}
-  @keyframes parpNaranja{50%{background:#fdba74;box-shadow:0 0 0 4px rgba(217,119,6,.35)}}
-  @keyframes parpRojo{50%{background:#fca5a5;box-shadow:0 0 0 5px rgba(220,38,38,.4)}}
+  @keyframes parpNaranja{50%{background:var(--f1);box-shadow:0 0 0 4px rgba(217,119,6,.35)}}
+  @keyframes parpRojo{50%{background:var(--f2);box-shadow:0 0 0 5px rgba(220,38,38,.4)}}
   @keyframes barNaranja{50%{background:#fed7aa;box-shadow:0 0 10px 2px rgba(217,119,6,.7)}}
   @keyframes barRojo{50%{background:#fecaca;box-shadow:0 0 12px 3px rgba(220,38,38,.8)}}
   .fill.alarma{animation:barNaranja .8s infinite}
@@ -108,8 +114,6 @@
   .iarow button{margin:0}
   #iaBtn{padding:10px 16px;border:0;border-radius:8px;background:var(--acc);color:#fff;font-weight:700}
   button:disabled{opacity:.5;cursor:default}
-  #iaMic{border:0;border-radius:8px;background:#e5e7eb;color:#374151;padding:10px 12px}
-  #iaMic.escuchando{background:var(--crit);color:#fff}
   .volrow{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:.85rem;color:var(--sub)}
   .volrow input{width:auto;flex:1;padding:0;border:0;background:none;accent-color:var(--acc)}
   .volrow #iaVolTxt{min-width:2.2em;text-align:right;color:var(--txt)}
@@ -122,7 +126,7 @@
   .iahead h2{flex:1;font-size:1.05rem;margin:0}
   .iahead .vol{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--sub)}
   .iahead .vol input{width:80px;padding:0;border:0;background:none;accent-color:var(--acc)}
-  .iahead button{border:0;background:#f3f4f6;color:#374151;border-radius:8px;padding:7px 10px;font-size:.95rem;cursor:pointer}
+  .iahead button{border:0;background:#f3f4f6;color:#374151;border-radius:8px;padding:7px 10px;font-size:.85rem;font-weight:600;cursor:pointer}
   #iaCerrar{font-size:1.2rem;line-height:1;padding:6px 12px}
   #iaMsgs{flex:1;overflow-y:auto;padding:18px 14px;-webkit-overflow-scrolling:touch}
   .iainner{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
@@ -141,19 +145,62 @@
   .iaestado{font-size:.8rem;color:var(--sub);min-height:1.1em;margin-bottom:4px}
   .iabar{display:flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:999px;padding:5px 6px 5px 14px;background:#fff}
   .iabar input{flex:1;border:0;padding:8px 0;background:none;outline:none}
-  .iabar #iaMic{width:38px;height:38px;border-radius:50%;padding:0}
   .iabar #iaBtn{width:38px;height:38px;border-radius:50%;padding:0;font-size:1rem}
   #abrirIA{width:100%;margin-top:10px;font-size:1rem;padding:12px}
+
+  :root[data-tema="oscuro"] .card, :root[data-tema="oscuro"] details{box-shadow:0 1px 3px rgba(0,0,0,.5)}
+  :root[data-tema="oscuro"] .b0{background:#052e16;color:#86efac}
+  :root[data-tema="oscuro"] .b1{background:#422006;color:#fcd34d}
+  :root[data-tema="oscuro"] .b2{background:#450a0a;color:#fca5a5}
+  :root[data-tema="oscuro"] #vt{color:#f87171}
+  :root[data-tema="oscuro"] #vh{color:#60a5fa}
+  :root[data-tema="oscuro"] .bar{background:#334155}
+  :root[data-tema="oscuro"] .mark{background:#e5e7eb}
+  :root[data-tema="oscuro"] .tk{background:rgba(255,255,255,.25)}
+  :root[data-tema="oscuro"] .dot{background:#64748b}
+  :root[data-tema="oscuro"] .rg, :root[data-tema="oscuro"] .pag button, :root[data-tema="oscuro"] .chip, :root[data-tema="oscuro"] .iahead button{background:#334155;color:#e5e7eb}
+  :root[data-tema="oscuro"] .rg.act{background:var(--acc);color:#fff}
+  :root[data-tema="oscuro"] .s-t{background:#172554} :root[data-tema="oscuro"] .s-t h3{color:#60a5fa}
+  :root[data-tema="oscuro"] .s-h{background:#052e16} :root[data-tema="oscuro"] .s-h h3{color:#4ade80}
+  :root[data-tema="oscuro"] .s-g{background:#431407} :root[data-tema="oscuro"] .s-g h3{color:#fb923c}
+  :root[data-tema="oscuro"] .stat .f{color:#cbd5e1}
+  :root[data-tema="oscuro"] .e0{background:#14532d;color:#86efac}
+  :root[data-tema="oscuro"] .e1{background:#713f12;color:#fde68a}
+  :root[data-tema="oscuro"] .e2{background:#7f1d1d;color:#fecaca}
+  :root[data-tema="oscuro"] input, :root[data-tema="oscuro"] .iabar{background:#0f172a;border-color:#475569}
+  :root[data-tema="oscuro"] .iabar input{background:none}
+  :root[data-tema="oscuro"] .iahead .vol input{background:none}
+  :root[data-tema="oscuro"] .msg.user{background:#1e3a8a;color:#dbeafe}
+  :root[data-tema="oscuro"] .msg.bot.error, :root[data-tema="oscuro"] .err{color:#fca5a5}
+
+  /* Interruptor sol / luna */
+  .titulo{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .titulo h1{margin:4px 0 2px}
+  #tema{display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--head);border:1px solid var(--line);cursor:pointer}
+  #tema span{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--sub);transition:background .2s,color .2s}
+  #tema span.on{background:var(--card);color:var(--acc);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  #tema svg{width:18px;height:18px}
 
   @media (max-width:760px){
     .stats,.graficas{grid-template-columns:1fr}
     .encab h2{font-size:1.25rem}
   }
 </style>
+<script>
+(function(){ var t = null; try{ t = localStorage.getItem("tema"); }catch(e){}
+  if(t !== "oscuro" && t !== "claro") t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "oscuro" : "claro";
+  document.documentElement.setAttribute("data-tema", t); })();
+</script>
 </head>
 <body>
 
-<h1>Monitor de Sensores</h1>
+<div class="titulo">
+  <h1>Monitor de Sensores</h1>
+  <button id="tema" type="button" aria-label="Cambiar entre modo claro y oscuro" title="Cambiar modo">
+    <span id="temaSol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+    <span id="temaLuna"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
+  </button>
+</div>
 <div class="sub">Datos en vivo</div>
 <div class="sub" style="font-size:.75rem;line-height:1.4">Página web diseñada por: Ricardo González Martínez, Alexis de Jesús García Hernández<br>Proyecto Sensor de Riesgo Inteligente<br>Instituto COBACH 234</div>
 
@@ -176,6 +223,13 @@
 </div>
 
 <div class="status"><span id="dot" class="dot"></span><span id="stxt">Esperando configuración…</span></div>
+
+<!-- Asistente: tarjeta que abre el chat a pantalla completa -->
+<div class="card" id="iaCard" style="margin-top:14px">
+  <div class="lbl">Asistente</div>
+  <div style="color:var(--sub);font-size:.9rem;margin-top:6px">Pregunta sobre las lecturas y consulta todas tus respuestas anteriores.</div>
+  <button class="btn" id="abrirIA">🤖 Abrir asistente</button>
+</div>
 
 <!-- Análisis e historial -->
 <div class="encab">
@@ -234,18 +288,11 @@
   </div>
 </div>
 
-<!-- Asistente: tarjeta que abre el chat a pantalla completa -->
-<div class="card" id="iaCard" style="margin-top:14px">
-  <div class="lbl">Asistente</div>
-  <div style="color:var(--sub);font-size:.9rem;margin-top:6px">Pregunta sobre las lecturas y consulta todas tus respuestas anteriores.</div>
-  <button class="btn" id="abrirIA">🤖 Abrir asistente</button>
-</div>
-
 <div id="iaPanel" role="dialog" aria-label="Asistente" aria-modal="true">
   <div class="iahead">
     <h2>🤖 Asistente</h2>
     <div class="vol">🔈<input type="range" id="iaVol" min="0" max="100" value="100" aria-label="Volumen de la voz"><span id="iaVolTxt">100</span></div>
-    <button id="iaBorrar" title="Borrar conversación" aria-label="Borrar conversación">🗑</button>
+    <button id="iaBorrar" title="Borrar conversación" aria-label="Borrar conversación">Borrar</button>
     <button id="iaCerrar" title="Cerrar" aria-label="Cerrar asistente">✕</button>
   </div>
   <div id="iaMsgs"><div class="iainner" id="iaLista"></div></div>
@@ -259,7 +306,6 @@
     <div id="iaOut" class="iaestado"></div>
     <div class="iabar">
       <input id="iaq" placeholder="Pregunta sobre las lecturas…" maxlength="300" autocomplete="off">
-      <button id="iaMic" title="Hablar" aria-label="Hablar">🎤</button>
       <button id="iaBtn" title="Enviar" aria-label="Enviar">➤</button>
     </div>
   </div></div>
@@ -295,6 +341,19 @@
 // Pines virtuales de Blynk (los mismos de tu código del ESP32)
 const PINES = { temp:"v0", hum:"v1", gas:"v2", alarma:"v3" };
 const MAX_PUNTOS = 90;          // ~3 minutos si se pide cada 2 s
+// ---------- Modo claro / oscuro ----------
+const esOscuro = () => document.documentElement.getAttribute("data-tema") === "oscuro";
+function marcarTema(){
+  $("temaSol").classList.toggle("on", !esOscuro());
+  $("temaLuna").classList.toggle("on", esOscuro());
+}
+function cambiarTema(){
+  const nuevo = esOscuro() ? "claro" : "oscuro";
+  document.documentElement.setAttribute("data-tema", nuevo);
+  try{ localStorage.setItem("tema", nuevo); }catch(e){}
+  marcarTema();
+  if(typeof dibujarGraficas === "function") dibujarGraficas();
+}
 const CADA_MS = 2000;
 
 const $ = id => document.getElementById(id);
@@ -511,7 +570,7 @@ function grafica(id, s, o, hover){
   g.font = "11px system-ui,sans-serif";
 
   if(!s.length){
-    g.fillStyle = "#6b7280"; g.textAlign = "center";
+    g.fillStyle = (esOscuro() ? "#94a3b8" : "#6b7280"); g.textAlign = "center";
     g.fillText("Sin datos en este periodo", w/2, h/2);
     c._geo = null;
     return;
@@ -532,7 +591,7 @@ function grafica(id, s, o, hover){
   const Y = v => T + (1 - (v-lo)/(hi-lo))*ph;
 
   // Cuadrícula y etiquetas del eje Y
-  g.strokeStyle = "#e5e7eb"; g.lineWidth = 1; g.fillStyle = "#6b7280"; g.textAlign = "right";
+  g.strokeStyle = (esOscuro() ? "#334155" : "#e5e7eb"); g.lineWidth = 1; g.fillStyle = (esOscuro() ? "#94a3b8" : "#6b7280"); g.textAlign = "right";
   for(let i = 0; i <= 4; i++){
     const v = lo + (hi-lo)*i/4, yy = Y(v);
     g.beginPath(); g.moveTo(L, yy); g.lineTo(w-R, yy); g.stroke();
@@ -575,16 +634,16 @@ function grafica(id, s, o, hover){
   c._geo = { X, s, L, R, w };
   if(hover !== undefined && s[hover]){
     const p = s[hover], px = X(p.x), py = Y(p.y);
-    g.fillStyle = "#fff"; g.strokeStyle = o.color; g.lineWidth = 2;
+    g.fillStyle = (esOscuro() ? "#1e293b" : "#fff"); g.strokeStyle = o.color; g.lineWidth = 2;
     g.beginPath(); g.arc(px, py, 5, 0, 7); g.fill(); g.stroke();
     const txt = etiquetaX(p.x, 0) + " · " + p.y.toFixed(o.dec) + " " + o.unidad;
     g.font = "12px system-ui,sans-serif";
     const tw = g.measureText(txt).width + 16;
     let bx = px - tw/2; bx = Math.max(4, Math.min(w - tw - 4, bx));
     const by = py > T + 40 ? py - 34 : py + 12;
-    g.fillStyle = "rgba(17,24,39,.92)";
+    g.fillStyle = (esOscuro() ? "rgba(241,245,249,.96)" : "rgba(17,24,39,.92)");
     g.beginPath(); g.roundRect ? g.roundRect(bx, by, tw, 24, 6) : g.rect(bx, by, tw, 24); g.fill();
-    g.fillStyle = "#fff"; g.textAlign = "left"; g.fillText(txt, bx+8, by+16);
+    g.fillStyle = (esOscuro() ? "#0f172a" : "#fff"); g.textAlign = "left"; g.fillText(txt, bx+8, by+16);
   }
 }
 ["gTemp","gHum","gGas"].forEach(id=>{
@@ -787,7 +846,6 @@ function cerrarAsistente(){
   $("iaPanel").classList.remove("abierto");
   document.body.style.overflow = "";
   try{ speechSynthesis.cancel(); }catch(e){}
-  try{ if(escuchando) reconocimiento.abort(); }catch(e){}
 }
 $("abrirIA").addEventListener("click", abrirAsistente);
 $("iaCerrar").addEventListener("click", cerrarAsistente);
@@ -844,7 +902,6 @@ async function preguntarIA(texto){
       resp.textContent = d.error || "No se pudo obtener respuesta.";
       resp.classList.add("error");
     }
-    preguntoPorVoz = false;
   }catch(e){
     resp.classList.remove("pensando");
     resp.textContent = "No se pudo conectar con el asistente.";
@@ -854,11 +911,7 @@ async function preguntarIA(texto){
   setTimeout(()=>{ iaOcupada = false; $("iaBtn").disabled = false; }, 4000);
 }
 
-// Voz: dictado (SpeechRecognition) y lectura (speechSynthesis) del navegador
-let preguntoPorVoz = false;
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let reconocimiento = null;
-let escuchando = false;
+// Voz: lectura de las respuestas en voz alta (speechSynthesis del navegador)
 
 try{ speechSynthesis.getVoices(); }catch(e){}   // precarga las voces
 
@@ -905,98 +958,6 @@ function hablar(texto){
   }catch(e){}
 }
 
-function detenerMic(){
-  escuchando = false;
-  $("iaMic").classList.remove("escuchando");
-}
-
-// Ayudas para el micrófono: detecta navegadores problemáticos y pide el permiso explícitamente
-const ES_WEBVIEW = /FBAN|FBAV|Instagram|WhatsApp|Line\/|MicroMessenger|Messenger|TikTok|Snapchat|Telegram|; wv\)/i.test(navigator.userAgent);
-const AYUDA_PERMISO = "El micrófono está bloqueado. Toca el candado (o el icono de ajustes) junto a la dirección de la página, activa Micrófono y recarga.";
-
-async function pedirPermisoMic(out){
-  // Algunos navegadores no muestran el aviso con el dictado; getUserMedia sí lo muestra
-  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){ out.textContent = AYUDA_PERMISO; return; }
-  try{
-    const st = await navigator.mediaDevices.getUserMedia({ audio:true });
-    st.getTracks().forEach(t => t.stop());
-    out.textContent = "Listo, permiso concedido. Toca el micrófono otra vez para hablar.";
-  }catch(e){
-    if(e && (e.name === "NotFoundError" || e.name === "DevicesNotFoundError")) out.textContent = "No se encontró ningún micrófono en este dispositivo.";
-    else out.textContent = AYUDA_PERMISO;
-  }
-}
-
-$("iaMic").addEventListener("click", ()=>{
-  const out = $("iaOut");
-  if(escuchando){ try{ reconocimiento.stop(); }catch(e){} return; }
-  if(ES_WEBVIEW){ out.textContent = "Este navegador integrado (de una app) no deja usar el micrófono. Abre la página en Chrome, Edge o Safari."; return; }
-  if(!window.isSecureContext){ out.textContent = "El micrófono solo funciona si la página se abre con https://"; return; }
-  if(!SR){
-    out.textContent = "Este navegador no permite dictado por voz (por ejemplo Firefox o Brave). Usa Chrome, Edge o Safari, o escribe tu pregunta.";
-    return;
-  }
-
-  // Desbloquea la voz en iPhone (necesita un toque de la persona) y corta cualquier lectura en curso
-  try{ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance("")); }catch(e){}
-
-  preguntoPorVoz = false;
-  iniciarDictado(out, "es-MX");
-});
-
-function iniciarDictado(out, idioma){
-  reconocimiento = new SR();
-  reconocimiento.lang = idioma;
-  reconocimiento.interimResults = true;
-  reconocimiento.maxAlternatives = 1;
-  reconocimiento.continuous = false;
-  let textoFinal = "";
-  let reintento = false;
-
-  reconocimiento.onstart = ()=>{
-    escuchando = true;
-    $("iaMic").classList.add("escuchando");
-    out.textContent = "Escuchando…";
-  };
-  reconocimiento.onresult = e=>{
-    let parcial = "";
-    for(let i = e.resultIndex; i < e.results.length; i++){
-      const t = e.results[i][0].transcript;
-      if(e.results[i].isFinal) textoFinal += t; else parcial += t;
-    }
-    $("iaq").value = (textoFinal + parcial).trim();
-  };
-  reconocimiento.onerror = e=>{
-    detenerMic();
-    if(e.error === "language-not-supported" && idioma !== "es-ES"){
-      reintento = true;
-      iniciarDictado(out, "es-ES");   // algunos navegadores no tienen es-MX
-      return;
-    }
-    if(e.error === "not-allowed" || e.error === "service-not-allowed"){
-      out.textContent = "Pidiendo permiso para el micrófono…";
-      pedirPermisoMic(out);
-    }
-    else if(e.error === "audio-capture") out.textContent = "No se encontró un micrófono, o otra app lo está usando.";
-    else if(e.error === "no-speech") out.textContent = "No te escuché. Intenta de nuevo.";
-    else if(e.error === "network") out.textContent = "El dictado necesita internet y no funciona en este navegador. Prueba con Chrome, Edge o Safari.";
-    else if(e.error === "aborted") { /* cancelado por la persona */ }
-    else out.textContent = "No se pudo usar el micrófono.";
-  };
-  reconocimiento.onend = ()=>{
-    if(reintento) return;
-    detenerMic();
-    const pregunta = $("iaq").value.trim();
-    if(textoFinal.trim() && pregunta){
-      preguntoPorVoz = true;
-      preguntarIA(pregunta);
-    } else if(out.textContent === "Escuchando…"){
-      out.textContent = "No te escuché. Intenta de nuevo.";
-    }
-  };
-  try{ reconocimiento.start(); }catch(e){ detenerMic(); out.textContent = "No se pudo iniciar el micrófono. Recarga la página e intenta de nuevo."; }
-}
-
 $("iaBtn").addEventListener("click", ()=> preguntarIA($("iaq").value));
 $("iaq").addEventListener("keydown", e=>{ if(e.key === "Enter") preguntarIA($("iaq").value); });
 document.querySelectorAll(".chip").forEach(b=>{
@@ -1009,6 +970,8 @@ document.body.classList.toggle("vista", !!cfg.vista);
 aplicarCfgEnPantalla();
 if(!cfg.token) $("cfg").open = true;
 marcarRango();
+$("tema").addEventListener("click", cambiarTema);
+marcarTema();
 iniciar();
 cargarHistorial();
 setInterval(cargarHistorial, 60000);
