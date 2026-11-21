@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#f9fafb">
+<meta name="theme-color" content="#2563eb">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sensor Riesgo">
 <title>Monitor de Sensores</title>
 <style>
   :root{
@@ -181,6 +187,10 @@
   #tema span.on{background:var(--card);color:var(--acc);box-shadow:0 1px 3px rgba(0,0,0,.25)}
   #tema svg{width:18px;height:18px}
 
+  .appbox{margin-top:14px;text-align:center}
+  .appbox .btn{margin-top:0;font-size:1rem;padding:12px 22px}
+  #appMsg{font-size:.85rem;color:var(--sub);margin-top:10px;line-height:1.5}
+
   @media (max-width:760px){
     .stats,.graficas{grid-template-columns:1fr}
     .encab h2{font-size:1.25rem}
@@ -335,6 +345,12 @@
   <button class="btn" id="save">Guardar y conectar</button>
   <div id="err" class="err"></div>
 </details>
+
+<!-- Descargar app -->
+<div class="card appbox" id="appBox">
+  <button class="btn" id="btnApp">📲 Descargar app</button>
+  <div id="appMsg"></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -803,13 +819,11 @@ $("btnQR").addEventListener("click", ()=>{
   }
 });
 
-// Memoria de la conversación: últimas preguntas y respuestas (se conserva mientras esté abierta la pestaña)
-let conv = [];
-try{ conv = JSON.parse(sessionStorage.getItem("iaConv") || "[]"); if(!Array.isArray(conv)) conv = []; }catch(e){ conv = []; }
-
 // Historial visible del chat (se guarda en este navegador para poder releer respuestas)
 let chat = [];
 try{ chat = JSON.parse(localStorage.getItem("iaChat") || "[]"); if(!Array.isArray(chat)) chat = []; }catch(e){ chat = []; }
+// Memoria de la conversación: el asistente recibe las últimas preguntas y respuestas guardadas (también después de recargar)
+let conv = chat.map(m => ({ rol: m.rol === "user" ? "user" : "assistant", texto: m.texto })).slice(-12);
 function guardarChat(){
   if(chat.length > 100) chat.splice(0, chat.length - 100);
   try{ localStorage.setItem("iaChat", JSON.stringify(chat)); }catch(e){}
@@ -853,7 +867,6 @@ document.addEventListener("keydown", e=>{ if(e.key === "Escape" && $("iaPanel").
 $("iaBorrar").addEventListener("click", ()=>{
   if(!chat.length || confirm("¿Borrar toda la conversación?")){
     chat = []; conv = []; guardarChat();
-    try{ sessionStorage.removeItem("iaConv"); }catch(e){}
     pintarChat();
   }
 });
@@ -885,7 +898,7 @@ async function preguntarIA(texto){
         temp: ultimo.temp, hum: ultimo.hum, gas: ultimo.gas, nivel: ultimo.nivel,
         ualarm: cfg.ualarm, ucrit: cfg.ucrit,
         historial: historial.slice(-60),
-        conversacion: conv.slice(-6)
+        conversacion: conv.slice(-8)
       })
     });
     const d = await r.json();
@@ -896,7 +909,6 @@ async function preguntarIA(texto){
       guardarChat();
       conv.push({ rol: "user", texto: texto }, { rol: "assistant", texto: d.respuesta });
       if(conv.length > 12) conv.splice(0, conv.length - 12);
-      try{ sessionStorage.setItem("iaConv", JSON.stringify(conv)); }catch(e){}
       hablar(d.respuesta);
     } else {
       resp.textContent = d.error || "No se pudo obtener respuesta.";
@@ -975,6 +987,40 @@ marcarTema();
 iniciar();
 cargarHistorial();
 setInterval(cargarHistorial, 60000);
+
+// Botón "Descargar app": instala la página como app; si subes el archivo sensor-riesgo.apk, ofrece descargarlo
+const APK = "sensor-riesgo.apk";
+let instalador = null, hayApk = false;
+const yaInstalada = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone;
+if(yaInstalada) $("appBox").style.display = "none";
+window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); instalador = e; });
+window.addEventListener("appinstalled", ()=>{ $("appMsg").textContent = "App instalada. Búscala en tu pantalla de inicio."; $("btnApp").style.display = "none"; });
+if(location.protocol.indexOf("http") === 0){
+  fetch(APK, { method:"HEAD", cache:"no-store" }).then(r=>{ hayApk = r.ok && !/text\/html/.test(r.headers.get("content-type") || ""); }).catch(()=>{});
+}
+$("btnApp").addEventListener("click", async ()=>{
+  const m = $("appMsg");
+  if(instalador){
+    instalador.prompt();
+    try{ await instalador.userChoice; }catch(e){}
+    instalador = null;
+    return;
+  }
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(hayApk && !ios){
+    m.textContent = "Descargando… Al abrir el archivo, Android puede pedir permiso para instalar apps de esta fuente.";
+    const a = document.createElement("a"); a.href = APK; a.download = "sensor-riesgo.apk"; document.body.appendChild(a); a.click(); a.remove();
+    return;
+  }
+  if(ios) m.textContent = "En iPhone: toca el botón Compartir (el cuadro con la flecha) y elige «Agregar a pantalla de inicio».";
+  else if(location.protocol === "file:") m.textContent = "Abre la página desde su enlace publicado para poder instalarla.";
+  else m.textContent = "Abre el menú de tu navegador (⋮) y elige «Instalar app» o «Agregar a pantalla de inicio».";
+});
+
+// Permite instalar la página como app (y abrirla sin internet)
+if("serviceWorker" in navigator && location.protocol.indexOf("http") === 0){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
 </script>
 </body>
 </html>
