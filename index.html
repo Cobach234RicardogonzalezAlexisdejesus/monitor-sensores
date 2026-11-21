@@ -375,6 +375,7 @@ const CADA_MS = 2000;
 const $ = id => document.getElementById(id);
 let cfg = { token:"", server:"blynk.cloud", ualarm:2400, ucrit:3600 };
 let historial = [];
+let histT = [], histH = [];   // temperatura y humedad recientes (para estimar el posible origen)
 let timer = null;
 
 // Dirección de tu Worker de Cloudflare (termina en workers.dev).
@@ -499,7 +500,8 @@ async function actualizar(){
       f.classList.toggle("critico", gas >= cfg.ucrit);
       f.classList.toggle("alarma", gas > cfg.ualarm && gas < cfg.ucrit);
       historial.push(gas);
-      if(historial.length > MAX_PUNTOS) historial.shift();
+      histT.push(isNaN(temp) ? null : temp); histH.push(isNaN(hum) ? null : hum);
+      if(historial.length > MAX_PUNTOS){ historial.shift(); histT.shift(); histH.shift(); }
     }
 
     // Nivel final: el mayor entre lo que reporta el ESP32 (V3) y lo que indica el gas con los umbrales A y B
@@ -762,7 +764,7 @@ $("pagSig").addEventListener("click", ()=>{ pagTabla++; pintarHistorial(); });
 
 function iniciar(){
   clearInterval(timer);
-  historial = [];
+  historial = []; histT = []; histH = [];
   if(!cfg.token){ setEstado(false, "Esperando configuración…"); return; }
   setEstado(false, "Conectando…");
   actualizar();
@@ -898,6 +900,7 @@ async function preguntarIA(texto){
         temp: ultimo.temp, hum: ultimo.hum, gas: ultimo.gas, nivel: ultimo.nivel,
         ualarm: cfg.ualarm, ucrit: cfg.ucrit,
         historial: historial.slice(-60),
+        histTemp: histT.slice(-60), histHum: histH.slice(-60),
         conversacion: conv.slice(-8)
       })
     });
