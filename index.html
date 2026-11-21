@@ -191,6 +191,16 @@
   .appbox .btn{margin-top:0;font-size:1rem;padding:12px 22px}
   #appMsg{font-size:.85rem;color:var(--sub);margin-top:10px;line-height:1.5}
 
+  /* Posible origen de la alarma */
+  .origen{display:none;border-radius:12px;padding:12px 16px;margin:-4px 0 14px;font-size:.95rem;line-height:1.45}
+  .origen.on{display:block}
+  .origen b{display:block;font-size:1rem;margin-bottom:2px}
+  .origen small{display:block;opacity:.8;margin-top:4px;font-size:.75rem}
+  .o1{background:#fef3c7;border:1px solid var(--warn);color:#92400e}
+  .o2{background:#fee2e2;border:1px solid var(--crit);color:#991b1b}
+  :root[data-tema="oscuro"] .o1{background:#422006;color:#fcd34d}
+  :root[data-tema="oscuro"] .o2{background:#450a0a;color:#fca5a5}
+
   @media (max-width:760px){
     .stats,.graficas{grid-template-columns:1fr}
     .encab h2{font-size:1.25rem}
@@ -215,6 +225,7 @@
 <div class="sub" style="font-size:.75rem;line-height:1.4">Página web diseñada por: Ricardo González Martínez, Alexis de Jesús García Hernández<br>Proyecto Sensor de Riesgo Inteligente<br>Instituto COBACH 234</div>
 
 <div id="banner" class="banner boff">Sin datos<small>Configura tu token abajo</small></div>
+<div id="origen" class="origen"></div>
 
 <div class="grid">
   <div class="card"><div class="lbl">Temperatura</div><div class="val"><span id="vt">--</span><span> °C</span></div></div>
@@ -474,6 +485,38 @@ function guardarLocal(t, h, g, n){
   try{ localStorage.setItem("histLocal", JSON.stringify(histLocal)); }catch(e){}
 }
 
+// ---------- Posible origen de la alarma (suposición con reglas, no identifica el gas exacto) ----------
+const UMBRAL_TEMP = 35;   // °C, el mismo del ESP32
+function tendenciaGas(h){
+  if(h.length < 10) return "insuficiente";
+  const k = Math.min(5, Math.floor(h.length/3));
+  const prom = a => a.reduce((s,x)=>s+x,0)/a.length;
+  const d = prom(h.slice(-k)) - prom(h.slice(0,k));
+  return d > 200 ? "sube_rapido" : d > 60 ? "sube" : "otra";
+}
+function origenAlarma(temp, hum, gas){
+  const t = tendenciaGas(historial);
+  const gasAlto = gas > cfg.ualarm;
+  const tempAlta = !isNaN(temp) && temp > UMBRAL_TEMP;
+  const humAlta = !isNaN(hum) && hum > 80;
+  const gasActivo = gasAlto || t === "sube_rapido";
+  if(tempAlta && gasActivo) return ["Combustión, humo o fuego", "El gas y la temperatura están altos a la vez. Podría haber algo quemándose."];
+  if(humAlta && gasActivo)  return ["Aerosol", "El gas subió junto con la humedad (mayor a 80 %). Podría ser un aerosol, como un desodorante o ambientador."];
+  if(t === "sube_rapido")   return ["Fuga de gas o alcohol", "El gas sube rápido y la temperatura no está alta. Podría ser una fuga de gas o vapor de alcohol."];
+  if(t === "sube" && gas > cfg.ualarm/2) return ["Gas acumulado", "El gas va subiendo lento pero de forma sostenida. Podría estarse acumulando en el lugar."];
+  if(gasAlto)  return ["Gas alto sin causa clara", "El gas está sobre el umbral pero no coincide con ninguna situación conocida."];
+  if(tempAlta) return ["Calor sin gas", "La alarma es por temperatura y el gas está normal. Revisa si hay una fuente de calor cerca."];
+  return null;
+}
+function mostrarOrigen(conectado, nivelFinal, temp, hum, gas){
+  const el = $("origen");
+  const o = (conectado && nivelFinal >= 1 && !isNaN(gas)) ? origenAlarma(temp, hum, gas) : null;
+  if(!o){ el.className = "origen"; el.innerHTML = ""; return; }
+  el.className = "origen on " + (nivelFinal === 2 ? "o2" : "o1");
+  el.innerHTML = "<b>Posible origen: " + o[0] + "</b>" + o[1] +
+                 "<small>Es una suposición: los sensores no identifican el tipo exacto de gas.</small>";
+}
+
 async function actualizar(){
   if(!cfg.token) return;
   const t = encodeURIComponent(cfg.token);
@@ -525,8 +568,10 @@ async function actualizar(){
       banner("b0", "✅ Todo normal", "Sin alarmas");
       setEstado(true, "Conectado · actualizado " + new Date().toLocaleTimeString());
     }
+    mostrarOrigen(conectado, nivelFinal, temp, hum, gas);
     $("err").textContent = "";
   }catch(e){
+    mostrarOrigen(false, 0, NaN, NaN, NaN);
     setEstado(false, "Error de conexión: " + e.message);
     banner("boff", "Sin datos", "Revisa el token, el servidor o tu internet");
   }
