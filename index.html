@@ -35,7 +35,7 @@ button{cursor:pointer}
 .pill.on .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(52,211,153,.2)}
 .wrap{max-width:1100px;margin:0 auto;padding:18px max(4vw,14px)}
 .view{display:none}.view.act{display:block}
-.hero[data-s=ok]{--c:var(--ok)}.hero[data-s=gas],.hero[data-s=calor]{--c:var(--warn)}.hero[data-s=peligro]{--c:var(--bad)}.hero[data-s=warm]{--c:var(--info)}.hero[data-s=off]{--c:var(--off)}
+.hero[data-s=ok]{--c:var(--ok)}.hero[data-s=gas],.hero[data-s=humo],.hero[data-s=calor]{--c:var(--warn)}.hero[data-s=peligro]{--c:var(--bad)}.hero[data-s=warm]{--c:var(--info)}.hero[data-s=off]{--c:var(--off)}
 .hero{position:relative;border-radius:24px;padding:22px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:22px;align-items:center;
  background:linear-gradient(135deg,color-mix(in srgb,var(--c) 16%,transparent),transparent 65%),var(--card2);border:1px solid color-mix(in srgb,var(--c) 30%,transparent);transition:background .6s,border-color .6s}
 .ring{position:relative;width:clamp(96px,26vw,130px);aspect-ratio:1}
@@ -278,8 +278,8 @@ nav a.act{color:#0c1217;background:var(--acc);box-shadow:0 0 0 1px rgba(45,212,1
       <div class="field"><label for="cSrv">Servidor de Blynk</label><input id="cSrv" placeholder="blynk.cloud"></div>
       <div class="field"><label for="cWk">Dirección del Worker (asistente e historial)</label><input id="cWk" placeholder="https://…workers.dev"></div>
       <div class="two">
-        <div class="field"><label for="cUa">Umbral de alerta (gas)</label><input id="cUa" type="number" inputmode="numeric"></div>
-        <div class="field"><label for="cUc">Umbral de peligro (gas)</label><input id="cUc" type="number" inputmode="numeric"></div>
+        <div class="field"><label for="cUa">Umbral de alerta (gas LP, MQ-2)</label><input id="cUa" type="number" inputmode="numeric"></div>
+        <div class="field"><label for="cUc">Umbral de peligro (gas LP, MQ-2)</label><small>MQ-5 y MQ-135 se comparan con su propio aire limpio: alerta al doble, peligro al triple.</small><input id="cUc" type="number" inputmode="numeric"></div>
         <div class="field"><label for="cUt">Temperatura máxima (°C)</label><input id="cUt" type="number" inputmode="numeric"></div>
       </div>
       <div class="row"><button class="btn pri">Guardar y conectar</button><button class="btn" type="button" id="btnDemo">Usar modo demostración</button></div>
@@ -405,10 +405,15 @@ function pendiente() {   // puntos por segundo (regresión lineal del último mi
 }
 function nivel() {
   if (!st.online) return 'off';
-  const g = st.gas, gl = Math.max(g >= cfg.uc ? 2 : g > cfg.ua ? 1 : 0, nivelRel(st.mq5, base.m5), nivelRel(st.mq135, base.m135)), n = Math.max(st.v3 || 0, gl);
+  const g = st.gas, n2 = g >= cfg.uc ? 2 : g > cfg.ua ? 1 : 0, n5 = nivelRel(st.mq5, base.m5), n135 = nivelRel(st.mq135, base.m135);
+  const gl = Math.max(n2, n5, n135), n = Math.max(st.v3 || 0, gl);
   if (st.calHW === 1 || (st.calHW === null && now() < st.warmUntil)) return 'warm';
   if (n >= 2) return 'peligro';
-  if (n === 1) return gl >= 1 ? 'gas' : 'calor';
+  if (n === 1) {
+    const calor = st.temp !== null && st.temp > cfg.ut;
+    if (gl === 0) return calor ? 'calor' : 'gas';          // el equipo avisa aunque la app aún no vea la causa
+    return n135 >= 1 && n135 >= n2 && n135 >= n5 ? 'humo' : 'gas';
+  }
   return 'ok';
 }
 function origen() {
@@ -430,6 +435,8 @@ const ESTADOS = {
            q:['No se necesita ninguna acción.', 'Si huele a gas, ventile y salga aunque el sensor marque normal.']},
   gas:    {t:'Alerta de gas', d:'El nivel de gas pasó el límite de alerta.', icon:'warn',
            q:['Abra puertas y ventanas.', 'No encienda flama, cerillos ni interruptores de luz.', 'Revise estufa, tanque de gas, aerosoles o alcohol cercanos.', 'Si el nivel sigue subiendo, salga del lugar y llame al 911.']},
+  humo:   {t:'Alerta de humo', d:'El sensor de humo (MQ-135) subió mucho sobre el aire normal.', icon:'warn',
+           q:['Busque humo, algo quemándose o un cortocircuito cerca.', 'Abra puertas y ventanas.', 'Si ve fuego o el humo aumenta, salga del lugar y llame al 911.']},
   calor:  {t:'Alerta de calor', d:`La temperatura pasó el límite.`, icon:'warn',
            q:['Busque una fuente de calor cerca del equipo.', 'Ventile el lugar.', 'Si ve humo o fuego, salga y llame al 911.']},
   peligro:{t:'Peligro', d:'Nivel de gas crítico.', icon:'bad',
@@ -490,7 +497,7 @@ function pintar() {
 }
 
 function registrarCambio(k) {
-  const nombre = {ok:'Todo normal', gas:'Alerta de gas', calor:'Alerta de calor', peligro:'Peligro', warm:'Calentando', off:'Sin señal'}[k];
+  const nombre = {ok:'Todo normal', gas:'Alerta de gas', humo:'Alerta de humo', calor:'Alerta de calor', peligro:'Peligro', warm:'Calentando', off:'Sin señal'}[k];
   const col = {ok:'var(--ok)', gas:'var(--warn)', calor:'var(--warn)', peligro:'var(--bad)', warm:'var(--info)', off:'var(--off)'}[k];
   st.cambios.unshift({ts:Date.now() / 1000, nombre, col}); st.cambios = st.cambios.slice(0, 8);
   $('#cambios').innerHTML = st.cambios.map(c => `<li style="flex-direction:row;justify-content:space-between"><b style="color:${c.col}">${c.nombre}</b><span class="t" style="color:var(--mut)">${hora(c.ts)}</span></li>`).join('');
@@ -531,7 +538,7 @@ function pintarTiles(on, k) {
      v: !on || pv === null ? '--' : pv ? 'Sí' : 'No', s: !on || pv === null ? 'off' : pv ? (k === 'peligro' ? 'bad' : 'warn') : 'ok',
      d: 'Movimiento detectado al momento'}
   ];
-  if (on && fv !== null) T.push({n:'Ventilador', sub:'Relevador', a:'#38bdf8', chip: fv ? 'VENTILANDO' : 'EN ESPERA', v: fv ? 'ON' : 'OFF', s: fv ? 'info' : 'ok', d:'Se enciende solo en alerta de gas'});
+  if (on && fv !== null) T.push({n:'Ventilador', sub:'Relevador', a:'#38bdf8', chip: fv ? 'VENTILANDO' : 'EN ESPERA', v: fv ? 'ON' : 'OFF', s: fv ? 'info' : 'ok', d:'Se enciende solo en alerta de gas, humo o calor'});
   $('#tiles').innerHTML = T.map(x => `<div class="tile" data-s="${x.s}" style="--a:${x.a}">
     <div class="th"><div class="tn">${x.n}<small>${x.sub}</small></div><span class="chip">${x.chip}</span></div>
     <div class="tv">${x.v}</div>
@@ -586,7 +593,7 @@ function hablar(txt) {
     u.volume = 1; u.rate = 0.95; u.pitch = 1.15; speechSynthesis.speak(u); } catch (e) {}
 }
 // Notificación del sistema con vibración (sale aunque estés en otra app o con la pantalla bloqueada si la app sigue abierta)
-const NOTI = {gas:['⚠️ Alerta de gas', 'Ventile el lugar y no encienda flama.'], calor:['🌡️ Temperatura alta', 'Revise el área del sensor.'],
+const NOTI = {gas:['⚠️ Alerta de gas', 'Ventile el lugar y no encienda flama.'], humo:['🔥 Alerta de humo', 'Busque humo o algo quemándose. Si ve fuego, salga y llame al 911.'], calor:['🌡️ Temperatura alta', 'Revise el área del sensor.'],
   peligro:['🚨 PELIGRO', 'Gas crítico. Salga del lugar y llame al 911.'], off:['Sensor sin señal', 'El equipo dejó de enviar datos.']};
 async function notificar(k) {
   if (!NOTI[k] || !('Notification' in window) || Notification.permission !== 'granted') return;
@@ -600,16 +607,16 @@ let wake = null;
 async function pedirWake() { try { if (alertas && 'wakeLock' in navigator && !document.hidden) wake = await navigator.wakeLock.request('screen'); } catch (e) {} }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pedirWake(); });
 let vozT = null;
-const VOZ = {gas:'Atención. Alerta de gas. Abra puertas y ventanas y no encienda flama.', calor:'Atención. Temperatura alta cerca del sensor.',
+const VOZ = {gas:'Atención. Alerta de gas. Abra puertas y ventanas y no encienda flama.', humo:'Atención. Alerta de humo. Revise si algo se está quemando y abra las ventanas.', calor:'Atención. Temperatura alta cerca del sensor.',
   peligro:'Peligro. Nivel de gas crítico. Salga del lugar y llame al nueve once desde afuera.', off:'El equipo perdió la señal.', ok:'Todo normal.'};
 function avisar(k, forzar) {
   if (k === st.prevKey && !forzar) return;
   const antes = st.prevKey; st.prevKey = k;
   if (!antes && !forzar) return;
   if (VOZ[k] && !(k === 'ok' && (antes === 'warm' || forzar))) hablar(VOZ[k]);
-  if (k === 'gas' || k === 'peligro' || k === 'calor' || (k === 'off' && antes && antes !== 'off')) notificar(k);
+  if (k === 'gas' || k === 'humo' || k === 'peligro' || k === 'calor' || (k === 'off' && antes && antes !== 'off')) notificar(k);
   clearInterval(beepT); clearInterval(vozT);
-  if (alertas && (k === 'gas' || k === 'peligro' || k === 'calor')) {
+  if (alertas && (k === 'gas' || k === 'humo' || k === 'peligro' || k === 'calor')) {
     const f = k === 'peligro' ? 1200 : 880, cada = k === 'peligro' ? 600 : 1500;
     beepT = setInterval(() => { beep(f, .25); try { navigator.vibrate && navigator.vibrate(k === 'peligro' ? 450 : 300); } catch (e) {} }, cada);
     vozT = setInterval(() => hablar(VOZ[k]), k === 'peligro' ? 9000 : 15000);   // repite la voz mientras dure la alarma
@@ -774,7 +781,7 @@ async function preguntar(q) {
   try {
     if (cfg.demo || !cfg.worker || !st.online) r = respuestaLocal(q);
     else {
-      const n = nivel(), niv = n === 'peligro' ? 2 : (n === 'gas' || n === 'calor') ? 1 : 0;
+      const n = nivel(), niv = n === 'peligro' ? 2 : (n === 'gas' || n === 'humo' || n === 'calor') ? 1 : 0;
       const d = await worker({pregunta:q, gas:st.gas, temp:st.temp, hum:st.hum, ualarm:cfg.ua, ucrit:cfg.uc, nivel:niv,
         historial:st.buf.map(p => p.g).slice(-90), resumenLocal:[], conversacion:conv.slice(-7, -1)});
       r = d.respuesta;
