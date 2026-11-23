@@ -196,7 +196,7 @@ nav a.act{color:#0c1217;background:var(--acc);box-shadow:0 0 0 1px rgba(45,212,1
           <div class="seg" style="margin-top:8px"><button id="demoPers" aria-pressed="false">Simular persona cerca</button></div>
         </div>
         <div class="row">
-          <button class="btn pri" id="btnAlert">Activar sonido y voz</button>
+          <button class="btn pri" id="btnAlert">Activar alarma (voz, vibración y avisos)</button>
           <button class="btn" id="btnTest">Probar alarma</button>
         </div>
       </div>
@@ -559,13 +559,39 @@ let audio = null, alertas = false, beepT = null;
 function beep(f, dur) {
   if (!audio) return;
   const o = audio.createOscillator(), gn = audio.createGain();
-  o.frequency.value = f; o.type = 'square'; gn.gain.value = 0.08;
+  o.frequency.value = f; o.type = 'square'; gn.gain.value = 0.35;
   o.connect(gn); gn.connect(audio.destination); o.start(); o.stop(audio.currentTime + dur);
 }
+// Voz de mujer en español (la que tenga el teléfono)
+let vozMujer = null;
+function elegirVoz() {
+  try {
+    const vs = speechSynthesis.getVoices().filter(v => /^es/i.test(v.lang));
+    const fem = /paulina|sabina|monica|mónica|helena|laura|lucia|lucía|elvira|dalia|marisol|esperanza|female|mujer|google español/i;
+    vozMujer = vs.find(v => /es-MX/i.test(v.lang) && fem.test(v.name)) || vs.find(v => fem.test(v.name)) || vs.find(v => /es-MX|es-US/i.test(v.lang)) || vs[0] || null;
+  } catch (e) {}
+}
+try { elegirVoz(); speechSynthesis.onvoiceschanged = elegirVoz; } catch (e) {}
 function hablar(txt) {
   try { if (!alertas || !window.speechSynthesis) return; speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(txt); u.lang = 'es-MX'; speechSynthesis.speak(u); } catch (e) {}
+    const u = new SpeechSynthesisUtterance(txt); u.lang = vozMujer ? vozMujer.lang : 'es-MX'; if (vozMujer) u.voice = vozMujer;
+    u.volume = 1; u.rate = 0.95; u.pitch = 1.15; speechSynthesis.speak(u); } catch (e) {}
 }
+// Notificación del sistema con vibración (sale aunque estés en otra app o con la pantalla bloqueada si la app sigue abierta)
+const NOTI = {gas:['⚠️ Alerta de gas', 'Ventile el lugar y no encienda flama.'], calor:['🌡️ Temperatura alta', 'Revise el área del sensor.'],
+  peligro:['🚨 PELIGRO', 'Gas crítico. Salga del lugar y llame al 911.'], off:['Sensor sin señal', 'El equipo dejó de enviar datos.']};
+async function notificar(k) {
+  if (!NOTI[k] || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const op = {body: NOTI[k][1], icon: 'icon-192.png', badge: 'icon-192.png', tag: 'sensor-riesgo', renotify: true,
+    requireInteraction: k !== 'off', vibrate: k === 'peligro' ? [800,200,800,200,800,200,800] : [500,250,500,250,500]};
+  try { const r = await navigator.serviceWorker?.ready; if (r) return r.showNotification(NOTI[k][0], op); } catch (e) {}
+  try { new Notification(NOTI[k][0], op); } catch (e) {}
+}
+// Mantener la pantalla encendida mientras las alertas están activas (la app sigue vigilando)
+let wake = null;
+async function pedirWake() { try { if (alertas && 'wakeLock' in navigator && !document.hidden) wake = await navigator.wakeLock.request('screen'); } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pedirWake(); });
+let vozT = null;
 const VOZ = {gas:'Atención. Alerta de gas. Abra puertas y ventanas y no encienda flama.', calor:'Atención. Temperatura alta cerca del sensor.',
   peligro:'Peligro. Nivel de gas crítico. Salga del lugar y llame al nueve once desde afuera.', off:'El equipo perdió la señal.', ok:'Todo normal.'};
 function avisar(k, forzar) {
@@ -573,24 +599,30 @@ function avisar(k, forzar) {
   const antes = st.prevKey; st.prevKey = k;
   if (!antes && !forzar) return;
   if (VOZ[k] && !(k === 'ok' && (antes === 'warm' || forzar))) hablar(VOZ[k]);
-  clearInterval(beepT);
+  if (k === 'gas' || k === 'peligro' || k === 'calor' || (k === 'off' && antes && antes !== 'off')) notificar(k);
+  clearInterval(beepT); clearInterval(vozT);
   if (alertas && (k === 'gas' || k === 'peligro' || k === 'calor')) {
     const f = k === 'peligro' ? 1200 : 880, cada = k === 'peligro' ? 600 : 1500;
-    beepT = setInterval(() => { beep(f, .25); try { navigator.vibrate && navigator.vibrate(300); } catch (e) {} }, cada);
+    beepT = setInterval(() => { beep(f, .25); try { navigator.vibrate && navigator.vibrate(k === 'peligro' ? 450 : 300); } catch (e) {} }, cada);
+    vozT = setInterval(() => hablar(VOZ[k]), k === 'peligro' ? 9000 : 15000);   // repite la voz mientras dure la alarma
   }
 }
 $('#btnAlert').onclick = () => {
   alertas = !alertas;
   if (alertas && !audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
-  $('#btnAlert').textContent = alertas ? 'Sonido y voz activados' : 'Activar sonido y voz';
+  $('#btnAlert').textContent = alertas ? 'Alarma activada' : 'Activar alarma (voz, vibración y avisos)';
   $('#btnAlert').classList.toggle('pri', !alertas);
-  if (alertas) { hablar('Alertas de voz activadas.'); avisar(st.prevKey, true); }
-  else clearInterval(beepT);
+  if (alertas) {
+    elegirVoz(); hablar('Alertas de voz activadas.'); avisar(st.prevKey, true); pedirWake();
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+  } else { clearInterval(beepT); clearInterval(vozT); try { wake && wake.release(); } catch (e) {} wake = null; }
 };
 $('#btnTest').onclick = () => {
   if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
   [0, 350, 700].forEach(d => setTimeout(() => beep(1000, .2), d));
-  const a = alertas; alertas = true; hablar('Prueba de alarma. El sistema funciona.'); alertas = a;
+  const a = alertas; alertas = true; elegirVoz(); hablar('Prueba de alarma. El sistema funciona.'); alertas = a;
+  try { navigator.vibrate && navigator.vibrate([500, 250, 500, 250, 500]); } catch (e) {}
+  try { if ('Notification' in window) Notification.requestPermission().then(p => { if (p === 'granted') notificar('gas'); }); } catch (e) {}
 };
 
 // ---------- Demo: escenarios ----------
