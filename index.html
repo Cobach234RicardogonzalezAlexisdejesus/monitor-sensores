@@ -1,1123 +1,763 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#2563eb">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
-<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0c1217">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Sensor Riesgo">
-<title>Monitor de Sensores</title>
+<title>Sensor de Riesgo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=Archivo+Narrow:wght@600;700&display=swap">
 <style>
-  :root{
-    --bg:#f9fafb; --card:#ffffff; --txt:#111827; --sub:#6b7280; --line:#e5e7eb; --head:#f3f4f6;
-    --ok:#16a34a; --warn:#d97706; --crit:#dc2626; --acc:#2563eb;
-    --f1:#fdba74; --f2:#fca5a5; color-scheme:light;
-  }
-  /* Modo oscuro */
-  :root[data-tema="oscuro"]{
-    --bg:#0f172a; --card:#1e293b; --txt:#e5e7eb; --sub:#94a3b8; --line:#334155; --head:#273449;
-    --f1:#92400e; --f2:#7f1d1d; color-scheme:dark;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:20px 16px 40px;max-width:1100px;margin-inline:auto}
-  h1{font-size:1.5rem;margin:4px 0 2px}
-  h2{font-size:1.15rem;margin:0}
-  .sub{color:var(--sub);font-size:.85rem;margin-bottom:14px}
-  .card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-  .lbl{color:var(--sub);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
-
-  /* Aviso de estado */
-  .banner{border-radius:12px;padding:16px;font-weight:700;font-size:1.15rem;text-align:center;margin-bottom:14px;transition:background .3s}
-  .banner small{display:block;font-weight:400;font-size:.8rem;opacity:.9;margin-top:2px}
-  .b0{background:#dcfce7;border:1px solid var(--ok);color:#166534}
-  .b1{background:#fef3c7;border:1px solid var(--warn);color:#92400e;animation:parpNaranja .8s infinite}
-  .b2{background:#fee2e2;border:1px solid var(--crit);color:#991b1b;animation:parpRojo .5s infinite}
-  .boff{background:var(--head);border:1px solid #9ca3af;color:var(--sub)}
-  @keyframes pulse{50%{background:#fecaca}}
-  @keyframes parpNaranja{50%{background:var(--f1);box-shadow:0 0 0 4px rgba(217,119,6,.35)}}
-  @keyframes parpRojo{50%{background:var(--f2);box-shadow:0 0 0 5px rgba(220,38,38,.4)}}
-  @keyframes barNaranja{50%{background:#fed7aa;box-shadow:0 0 10px 2px rgba(217,119,6,.7)}}
-  @keyframes barRojo{50%{background:#fecaca;box-shadow:0 0 12px 3px rgba(220,38,38,.8)}}
-  .fill.alarma{animation:barNaranja .8s infinite}
-  .fill.critico{animation:barRojo .5s infinite}
-  @media (prefers-reduced-motion: reduce){ .b1,.b2,.o1,.o2,.fill.alarma,.fill.critico{animation:none} }
-
-  /* Lecturas en vivo */
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-  .full{grid-column:1/-1}
-  .val{font-size:2rem;font-weight:700;margin-top:4px}
-  .val span{font-size:1rem;color:var(--sub);font-weight:400}
-  #vt{color:#dc2626;font-size:2rem;font-weight:700}
-  #vh{color:#2563eb;font-size:2rem;font-weight:700}
-  #vg{font-size:2rem;font-weight:700;color:var(--txt)}
-  .bar{position:relative;height:14px;background:#e5e7eb;border-radius:7px;margin-top:12px;overflow:hidden}
-  .fill{height:100%;width:0;background:var(--ok);transition:width .4s,background .4s}
-  .mark{position:absolute;top:0;bottom:0;width:3px;background:#374151;opacity:.85}
-  .legend{display:flex;justify-content:space-between;font-size:.72rem;color:var(--sub);margin-top:4px}
-  .tk{position:absolute;top:0;bottom:0;width:1px;background:rgba(17,24,39,.22)}
-  .ticks{position:relative;height:14px;margin-top:4px;font-size:.66rem;color:var(--sub)}
-  .ticks span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
-  .umbrales{position:relative;height:34px;margin-top:2px;font-size:.72rem;font-weight:600}
-  .umbrales span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
-  .mark{z-index:2}
-  canvas{width:100%;display:block}
-  .status{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--sub);margin:4px 2px 22px}
-  .dot{width:10px;height:10px;border-radius:50%;background:#9ca3af}
-  .dot.on{background:var(--ok)} .dot.off{background:var(--crit)}
-
-  /* Análisis e historial */
-  .encab{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin:8px 0 14px}
-  .encab h2{font-size:1.5rem}
-  .rangos{display:flex;gap:8px;flex-wrap:wrap}
-  button{font:inherit;cursor:pointer}
-  .rg{margin:0;padding:8px 16px;border:0;border-radius:8px;background:#e5e7eb;color:#374151;font-size:.9rem}
-  .rg.act{background:var(--acc);color:#fff}
-  .cabeza{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:baseline;margin-bottom:14px}
-  .cabeza .nota{color:var(--sub);font-size:.82rem}
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .stat{border-radius:10px;padding:14px 16px}
-  .stat h3{margin:0 0 8px;font-size:.95rem}
-  .stat .f{display:flex;justify-content:space-between;align-items:baseline;font-size:.82rem;color:#4b5563;margin-top:6px}
-  .stat .f b{font-size:1rem;color:var(--txt)}
-  .s-t{background:#eff6ff} .s-t h3{color:#2563eb}
-  .s-h{background:#f0fdf4} .s-h h3{color:#16a34a}
-  .s-g{background:#fff7ed} .s-g h3{color:#ea580c}
-  .graficas{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
-  .graficas canvas{height:260px;margin-top:10px;touch-action:pan-y}
-  .graficas h3{margin:0;font-size:1.05rem}
-  .tabla{overflow-x:auto;margin-top:6px}
-  table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:520px}
-  th{background:var(--head);color:var(--sub);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:10px 14px}
-  td{padding:12px 14px;border-top:1px solid var(--line)}
-  .est{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.78rem;font-weight:600}
-  .e0{background:#dcfce7;color:#166534} .e1{background:#fef3c7;color:#92400e} .e2{background:#fee2e2;color:#991b1b}
-  .pag{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;font-size:.85rem;color:var(--sub)}
-  .pag button{margin:0;padding:6px 14px;border:0;border-radius:8px;background:#e5e7eb;color:#374151}
-  .pag button:disabled{opacity:.45;cursor:default}
-  .fuente{font-size:.75rem;color:var(--sub);margin-top:8px}
-
-  /* Asistente, configuración y QR */
-  details{background:var(--card);border-radius:12px;padding:14px 18px;margin-top:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-  summary{cursor:pointer;color:var(--sub);font-size:.95rem}
-  label{display:block;font-size:.8rem;color:var(--sub);margin:10px 0 4px}
-  input{width:100%;padding:10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:var(--txt);font-size:.9rem}
-  .btn{margin-top:10px;padding:10px 16px;border:0;border-radius:8px;background:var(--acc);color:#fff;font-weight:700}
-  .err{color:#b91c1c;font-size:.85rem;margin-top:8px;min-height:1.1em}
-  .qrwrap{text-align:center}
-  #qrbox{display:inline-block;background:#fff;padding:14px;border-radius:12px;margin-top:12px;border:1px solid var(--line)}
-  #qrbox:empty{display:none}
-  #qrmsg{font-size:.85rem;color:var(--sub);margin-top:8px}
-  #qrmsg a{color:var(--acc)}
-  .vista #cfg{display:none}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-  .chip{margin:0;padding:7px 12px;font-size:.8rem;background:#e5e7eb;color:#374151;border:0;border-radius:999px;font-weight:600}
-  .iarow{display:flex;gap:8px;margin-top:10px}
-  .iarow input{flex:1}
-  .iarow button{margin:0}
-  #iaBtn{padding:10px 16px;border:0;border-radius:8px;background:var(--acc);color:#fff;font-weight:700}
-  button:disabled{opacity:.5;cursor:default}
-  .volrow{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:.85rem;color:var(--sub)}
-  .volrow input{width:auto;flex:1;padding:0;border:0;background:none;accent-color:var(--acc)}
-  .volrow #iaVolTxt{min-width:2.2em;text-align:right;color:var(--txt)}
-  .iaout{margin-top:12px;font-size:.92rem;line-height:1.5;white-space:pre-wrap;min-height:1.2em}
-
-  /* Asistente a pantalla completa (estilo chat) */
-  #iaPanel{position:fixed;inset:0;z-index:100;background:var(--card);display:none;flex-direction:column}
-  #iaPanel.abierto{display:flex}
-  .iahead{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--line);background:var(--card)}
-  .iahead h2{flex:1;font-size:1.05rem;margin:0}
-  .iahead .vol{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--sub)}
-  .iahead .vol input{width:80px;padding:0;border:0;background:none;accent-color:var(--acc)}
-  .iahead button{border:0;background:#f3f4f6;color:#374151;border-radius:8px;padding:7px 10px;font-size:.85rem;font-weight:600;cursor:pointer}
-  #iaCerrar{font-size:1.2rem;line-height:1;padding:6px 12px}
-  #iaMsgs{flex:1;overflow-y:auto;padding:18px 14px;-webkit-overflow-scrolling:touch}
-  .iainner{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
-  .msg{line-height:1.6;font-size:.95rem;white-space:pre-wrap;word-wrap:break-word}
-  .msg.user{align-self:flex-end;max-width:82%;background:#dbeafe;color:#1e3a8a;padding:10px 16px;border-radius:18px}
-  .msg.bot{align-self:flex-start;max-width:100%}
-  .msg.bot.pensando{color:var(--sub);animation:pulso 1.2s infinite}
-  .msg.bot.error{color:#b91c1c}
-  @keyframes pulso{50%{opacity:.4}}
-  .iabienvenida{color:var(--sub);text-align:center;margin-top:10vh;font-size:.95rem;line-height:1.5}
-  .iabienvenida b{display:block;color:var(--txt);font-size:1.15rem;margin-bottom:6px}
-  .iafoot{border-top:1px solid var(--line);padding:8px 14px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--card)}
-  .iafoot .inner{max-width:760px;margin:0 auto}
-  .iafoot .chips{margin:0 0 8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
-  .iafoot .chip{white-space:nowrap;flex:0 0 auto}
-  .iaestado{font-size:.8rem;color:var(--sub);min-height:1.1em;margin-bottom:4px}
-  .iabar{display:flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:999px;padding:5px 6px 5px 14px;background:#fff}
-  .iabar input{flex:1;border:0;padding:8px 0;background:none;outline:none}
-  .iabar #iaBtn{width:38px;height:38px;border-radius:50%;padding:0;font-size:1rem}
-  #abrirIA{width:100%;margin-top:10px;font-size:1rem;padding:12px}
-
-  :root[data-tema="oscuro"] .card, :root[data-tema="oscuro"] details{box-shadow:0 1px 3px rgba(0,0,0,.5)}
-  :root[data-tema="oscuro"] .b0{background:#052e16;color:#86efac}
-  :root[data-tema="oscuro"] .b1{background:#422006;color:#fcd34d}
-  :root[data-tema="oscuro"] .b2{background:#450a0a;color:#fca5a5}
-  :root[data-tema="oscuro"] #vt{color:#f87171}
-  :root[data-tema="oscuro"] #vh{color:#60a5fa}
-  :root[data-tema="oscuro"] .bar{background:#334155}
-  :root[data-tema="oscuro"] .mark{background:#e5e7eb}
-  :root[data-tema="oscuro"] .tk{background:rgba(255,255,255,.25)}
-  :root[data-tema="oscuro"] .dot{background:#64748b}
-  :root[data-tema="oscuro"] .rg, :root[data-tema="oscuro"] .pag button, :root[data-tema="oscuro"] .chip, :root[data-tema="oscuro"] .iahead button{background:#334155;color:#e5e7eb}
-  :root[data-tema="oscuro"] .rg.act{background:var(--acc);color:#fff}
-  :root[data-tema="oscuro"] .s-t{background:#172554} :root[data-tema="oscuro"] .s-t h3{color:#60a5fa}
-  :root[data-tema="oscuro"] .s-h{background:#052e16} :root[data-tema="oscuro"] .s-h h3{color:#4ade80}
-  :root[data-tema="oscuro"] .s-g{background:#431407} :root[data-tema="oscuro"] .s-g h3{color:#fb923c}
-  :root[data-tema="oscuro"] .stat .f{color:#cbd5e1}
-  :root[data-tema="oscuro"] .e0{background:#14532d;color:#86efac}
-  :root[data-tema="oscuro"] .e1{background:#713f12;color:#fde68a}
-  :root[data-tema="oscuro"] .e2{background:#7f1d1d;color:#fecaca}
-  :root[data-tema="oscuro"] input, :root[data-tema="oscuro"] .iabar{background:#0f172a;border-color:#475569}
-  :root[data-tema="oscuro"] .iabar input{background:none}
-  :root[data-tema="oscuro"] .iahead .vol input{background:none}
-  :root[data-tema="oscuro"] .msg.user{background:#1e3a8a;color:#dbeafe}
-  :root[data-tema="oscuro"] .msg.bot.error, :root[data-tema="oscuro"] .err{color:#fca5a5}
-
-  /* Interruptor sol / luna */
-  .titulo{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .titulo h1{margin:4px 0 2px}
-  #tema{display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--head);border:1px solid var(--line);cursor:pointer}
-  #tema span{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--sub);transition:background .2s,color .2s}
-  #tema span.on{background:var(--card);color:var(--acc);box-shadow:0 1px 3px rgba(0,0,0,.25)}
-  #tema svg{width:18px;height:18px}
-
-  .appbox{margin-top:14px;text-align:center}
-  .appbox .btn{margin-top:0;font-size:1rem;padding:12px 22px}
-  #appMsg{font-size:.85rem;color:var(--sub);margin-top:10px;line-height:1.5}
-
-  /* Posible origen de la alarma */
-  .origen{display:none;border-radius:12px;padding:12px 16px;margin:-4px 0 14px;font-size:.95rem;line-height:1.45}
-  .origen.on{display:block}
-  .origen b{display:block;font-size:1rem;margin-bottom:2px}
-  .origen small{display:block;opacity:.8;margin-top:4px;font-size:.75rem}
-  .o0{background:#dcfce7;border:1px solid var(--ok);color:#166534}
-  .o1{background:#fef3c7;border:1px solid var(--warn);color:#92400e;animation:parpNaranja .8s infinite}
-  .o2{background:#fee2e2;border:1px solid var(--crit);color:#991b1b;animation:parpRojo .5s infinite}
-  :root[data-tema="oscuro"] .o0{background:#052e16;color:#86efac}
-  :root[data-tema="oscuro"] .o1{background:#422006;color:#fcd34d}
-  :root[data-tema="oscuro"] .o2{background:#450a0a;color:#fca5a5}
-
-  @media (max-width:760px){
-    .stats,.graficas{grid-template-columns:1fr}
-    .encab h2{font-size:1.25rem}
-  }
+/* VOICE: sala de monitoreo tranquila: seria, clara, sin estridencias
+   IDEA: la consola de un centro de mando de Protección Civil, con un medidor que brilla según el riesgo
+   PICTURE: anillo grande del nivel de gas con brillo suave del color del estado
+   COLOUR and TYPE: fondo azul pizarra muy oscuro, acento turquesa; verde/ámbar/coral solo para el estado. Archivo / Archivo Narrow
+   LAYOUT: una columna en celular con pestañas abajo; dos columnas en pantallas anchas */
+:root{color-scheme:dark;--bg:#0c1217;--bg2:#121b22;--card:rgba(255,255,255,.045);--card2:#152029;--ink:#e6edf2;--mut:#8b9ba7;--line:rgba(255,255,255,.08);
+--acc:#2dd4bf;--ok:#34d399;--warn:#fbbf24;--bad:#fb7185;--info:#60a5fa;--off:#94a3b8;--c:var(--off)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#17303a 0,transparent 60%),radial-gradient(900px 500px at 110% 10%,#1a2340 0,transparent 55%),var(--bg);background-attachment:fixed;color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip;padding-bottom:88px;min-height:100vh}
+h1,h2,h3{font-family:"Archivo Narrow",Archivo,sans-serif;margin:0;line-height:1.1}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.top{display:flex;align-items:center;gap:12px;padding:12px max(4vw,14px);background:rgba(12,18,23,.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.top h1{font-size:20px;flex:1;letter-spacing:.01em}
+.top small{display:block;font:13px Archivo,sans-serif;color:var(--mut)}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;padding:6px 12px;border-radius:99px;background:var(--card);border:1px solid var(--line);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--off)}
+.pill.on .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(52,211,153,.2)}
+.wrap{max-width:1100px;margin:0 auto;padding:18px max(4vw,14px)}
+.view{display:none}.view.act{display:block}
+.hero[data-s=ok]{--c:var(--ok)}.hero[data-s=gas],.hero[data-s=calor]{--c:var(--warn)}.hero[data-s=peligro]{--c:var(--bad)}.hero[data-s=warm]{--c:var(--info)}.hero[data-s=off]{--c:var(--off)}
+.hero{position:relative;border-radius:24px;padding:22px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:22px;align-items:center;
+ background:linear-gradient(135deg,color-mix(in srgb,var(--c) 16%,transparent),transparent 65%),var(--card2);border:1px solid color-mix(in srgb,var(--c) 30%,transparent);transition:background .6s,border-color .6s}
+.ring{position:relative;width:clamp(96px,26vw,130px);aspect-ratio:1}
+.ring>svg{width:100%;height:100%;transform:rotate(135deg);overflow:visible}
+.ring .trk{fill:none;stroke:rgba(255,255,255,.07);stroke-width:12;stroke-linecap:round}
+.ring .arc{fill:none;stroke:var(--c);stroke-width:12;stroke-linecap:round;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--c) 70%,transparent));transition:stroke-dasharray .8s ease,stroke .6s}
+.rv{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c);font-weight:700;font-size:14px}
+.ico{width:clamp(52px,14vw,68px);height:clamp(52px,14vw,68px);color:var(--c);filter:drop-shadow(0 0 10px color-mix(in srgb,var(--c) 45%,transparent))}
+.hero h2{font-size:clamp(30px,6.5vw,46px);margin-top:10px;color:#fff}
+.hero p{margin:8px 0 0;font-size:16px;color:#c9d4dc}
+.hero[data-s=peligro] .ring{animation:glow 2.4s ease-in-out infinite}
+@keyframes glow{50%{filter:drop-shadow(0 0 18px rgba(251,113,133,.55))}}
+@media(prefers-reduced-motion:reduce){.hero[data-s=peligro] .ring{animation:none}}
+@media(max-width:480px){.hero{padding:16px;gap:14px}.hero h2{font-size:28px;margin-top:6px}.hero p{font-size:14.5px}.badge{font-size:12.5px}}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px;padding:10px;border-radius:22px;background:#05080b;border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.tile{position:relative;overflow:hidden;border-radius:14px;padding:13px 14px 12px;min-height:150px;display:flex;flex-direction:column;gap:6px;color:#fff;
+ background:linear-gradient(160deg,#1a2731,#0f171d);border:1px solid rgba(255,255,255,.07);transition:background .5s,color .5s}
+.tile::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--a)}
+.tile .th{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.tile .tn{font-weight:700;font-size:14.5px;color:var(--a);line-height:1.15}
+.tile .tn small{display:block;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.55)}
+.chip{font-size:10px;font-weight:800;letter-spacing:.03em;padding:3px 7px;flex:none;border-radius:99px;background:rgba(255,255,255,.1);white-space:nowrap}
+.tile .tv{font:800 clamp(34px,10vw,46px)/1 "Archivo Narrow",sans-serif;white-space:nowrap;font-variant-numeric:tabular-nums;margin-top:auto}
+.tile .tv small{font-size:.45em;font-weight:700;margin-left:2px;opacity:.75}
+.tbar{position:relative;height:7px;border-radius:4px;background:rgba(255,255,255,.12)}
+.tbar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--a);transition:width .6s}
+.tbar b{position:absolute;top:-3px;width:2px;height:13px;border-radius:1px}
+.tbar .ta{background:#fbbf24}.tbar .tc{background:#fb4d6d}
+.tile .ts{font-size:11.5px;font-weight:600;color:rgba(255,255,255,.72);display:flex;flex-wrap:wrap;gap:2px 10px;line-height:1.3}
+.tile .ts em{font-style:normal;white-space:nowrap}
+.tile .ts em::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;background:var(--d)}
+.tile[data-s=warn]{background:linear-gradient(160deg,#fcd34d,#f59e0b);color:#241700;border-color:transparent}
+.tile[data-s=bad]{background:linear-gradient(160deg,#fb5a78,#c8102e);border-color:transparent;animation:tpulse 1.6s ease-in-out infinite}
+.tile[data-s=info]{background:linear-gradient(160deg,#38bdf8,#0b6aa8);border-color:transparent}
+.tile[data-s=warn] .tn,.tile[data-s=bad] .tn,.tile[data-s=info] .tn{color:inherit}
+.tile[data-s=warn] .tn small,.tile[data-s=warn] .ts{color:rgba(36,23,0,.75)}
+.tile[data-s=bad] .tn small,.tile[data-s=bad] .ts,.tile[data-s=info] .tn small,.tile[data-s=info] .ts{color:rgba(255,255,255,.85)}
+.tile[data-s=warn] .tbar,.tile[data-s=bad] .tbar,.tile[data-s=info] .tbar{background:rgba(0,0,0,.2)}
+.tile[data-s=warn] .tbar i{background:#241700}.tile[data-s=bad] .tbar i,.tile[data-s=info] .tbar i{background:#fff}
+.tile[data-s=warn] .tbar .ta{background:#241700}.tile[data-s=bad] .tbar .tc{background:#fff}
+.tile[data-s=warn]::before,.tile[data-s=bad]::before,.tile[data-s=info]::before{background:rgba(255,255,255,.35)}
+.tile[data-s=warn] .chip{background:rgba(36,23,0,.15)}.tile[data-s=bad] .chip{background:rgba(255,255,255,.22)}
+.tile[data-s=off]{opacity:.55}
+.tile:last-child:nth-child(odd){grid-column:1/-1;min-height:110px}
+@keyframes tpulse{50%{box-shadow:0 0 0 3px rgba(251,90,120,.35),0 0 22px rgba(251,90,120,.45)}}
+@media(prefers-reduced-motion:reduce){.tile[data-s=bad]{animation:none}}
+.todo,.card,.pred,.demo{background:var(--card);border:1px solid var(--line);border-radius:18px}
+.todo{padding:18px 20px;margin-top:14px}
+.todo h3{font-size:19px;margin-bottom:8px}
+.todo ol{margin:0;padding-left:22px;font-size:16.5px}.todo li{margin:5px 0}.todo li::marker{color:var(--acc);font-weight:700}
+.pred{margin-top:14px;padding:14px 18px;font-weight:600;color:#c9d4dc}
+.pred.up{border-color:rgba(251,113,133,.45);background:rgba(251,113,133,.08);color:#fecdd3}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px;margin-top:14px}
+.card{padding:18px}
+.card h3{font:600 14px Archivo,system-ui,sans-serif;color:var(--mut)}
+.big{font:800 clamp(34px,8vw,44px)/1 "Archivo Narrow",sans-serif;margin:8px 0 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.big.sm{font-size:clamp(26px,6vw,32px)}
+.big small{font-size:17px;color:var(--mut);font-weight:600}
+.tag{display:inline-block;font-size:13px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,.06);color:var(--mut)}
+.tag.ok{color:var(--ok);background:rgba(52,211,153,.12)}.tag.warn{color:var(--warn);background:rgba(251,191,36,.12)}.tag.bad{color:var(--bad);background:rgba(251,113,133,.14)}
+.meter{position:relative;height:10px;border-radius:6px;display:flex;overflow:hidden;margin:16px 0 6px;opacity:.85}
+.meter i{display:block;height:100%}
+.mk{position:absolute;top:-5px;width:4px;height:20px;border-radius:2px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.6);transform:translateX(-2px);transition:left .6s}
+.mwrap{position:relative}
+.scale{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mut)}
+.spark{height:76px;margin-top:12px;position:relative}.spark svg{position:absolute;inset:0;width:100%;height:100%}
+.orig>b{display:block;font-size:19px;margin:8px 0 4px}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.btn{min-height:46px;padding:10px 18px;border-radius:14px;border:1px solid var(--line);background:var(--card);font-weight:700;transition:background .2s}
+.btn:hover{background:rgba(255,255,255,.08)}
+.btn.pri{background:var(--acc);color:#04201c;border-color:transparent}
+.btn.pri:hover{background:#5eead4}
+.demo{margin-top:14px;padding:14px 18px;border-style:dashed;border-color:rgba(96,165,250,.45)}
+.demo p{margin:0 0 10px;font-size:15px;color:#c9d4dc}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{min-height:44px;padding:8px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:700;color:#c9d4dc}
+.seg button[aria-pressed=true]{background:rgba(45,212,191,.15);border-color:var(--acc);color:var(--acc)}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px;margin-top:14px}
+.sum div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
+.sum span{display:block;font-size:13px;color:var(--mut)}.sum b{font:800 26px "Archivo Narrow",sans-serif;white-space:nowrap}
+.fig{position:relative;height:240px;margin-top:8px}.fig svg{position:absolute;inset:0;width:100%;height:100%}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mut);margin-top:4px}.leg i{display:inline-block;width:14px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.ev{list-style:none;margin:0;padding:0}.ev li{display:flex;flex-direction:column;gap:2px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ev li:last-child{border:0}.ev .t{white-space:nowrap;font-weight:700}
+.chat{display:flex;flex-direction:column;gap:10px;min-height:260px;margin-top:14px}
+.msg{max-width:88%;padding:12px 14px;border-radius:16px 16px 16px 4px;background:var(--card);border:1px solid var(--line);white-space:pre-wrap}
+.msg.me{align-self:flex-end;background:rgba(45,212,191,.16);border-color:rgba(45,212,191,.35);border-radius:16px 16px 4px 16px}
+.ask{display:flex;gap:8px;margin-top:12px}
+.ask input,.field input{flex:1;min-height:48px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-size:16px;width:100%}
+.ask input::placeholder,.field input::placeholder{color:#6b7b87}
+.field{margin:12px 0}.field label{display:block;font-weight:700;margin-bottom:4px}.field small{color:var(--mut)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:0 14px}
+.foot{color:var(--mut);font-size:14px;margin-top:22px}
+.vt{font-size:30px}.vsub{color:var(--mut);margin:6px 0 0}
+nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:rgba(12,18,23,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:5;padding-bottom:env(safe-area-inset-bottom)}
+nav a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px 10px;font-size:12.5px;font-weight:700;color:var(--mut);text-decoration:none;min-height:62px}
+nav a svg{width:23px;height:23px}
+nav a.act{color:var(--acc)}
+@media(min-width:900px){.ahora-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}.ahora-grid .grid{margin-top:0}}
 </style>
-<script>
-(function(){ var t = null; try{ t = localStorage.getItem("tema"); }catch(e){}
-  if(t !== "oscuro" && t !== "claro") t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "oscuro" : "claro";
-  document.documentElement.setAttribute("data-tema", t); })();
-</script>
 </head>
 <body>
+<header class="top">
+  <h1>Sensor de Riesgo Inteligente<small>COBACH 234</small></h1>
+  <span class="pill" id="pill"><span class="dot"></span><span id="pillTxt">Sin conexión</span></span>
+</header>
 
-<div class="titulo">
-  <h1>Monitor de Sensores</h1>
-  <button id="tema" type="button" aria-label="Cambiar entre modo claro y oscuro" title="Cambiar modo">
-    <span id="temaSol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
-    <span id="temaLuna"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
-  </button>
-</div>
-<div class="sub">Datos en vivo</div>
-<div class="sub" style="font-size:.75rem;line-height:1.4">Página web diseñada por: Ricardo González Martínez, Alexis de Jesús García Hernández<br>Proyecto Sensor de Riesgo Inteligente<br>Instituto COBACH 234</div>
-
-<div id="banner" class="banner boff">Sin datos<small>Configura tu token abajo</small></div>
-<div id="origen" class="origen"></div>
-
-<div class="grid">
-  <div class="card"><div class="lbl">Temperatura</div><div class="val"><span id="vt">--</span><span> °C</span></div></div>
-  <div class="card"><div class="lbl">Humedad</div><div class="val"><span id="vh">--</span><span> %</span></div></div>
-  <div class="card full">
-    <div class="lbl">Gas (MQ2)</div>
-    <div class="val"><span id="vg">--</span><span> / 4095</span></div>
-    <div class="bar">
-      <div id="fill" class="fill"></div>
-      <div id="mAlarm" class="mark"></div>
-      <div id="mCrit" class="mark"></div>
+<main class="wrap">
+  <!-- AHORA -->
+  <section class="view act" id="v-ahora">
+    <div class="ahora-grid">
+      <div>
+        <div class="hero" id="hero" data-s="off" role="status" aria-live="polite">
+          <div class="ring"><svg viewBox="0 0 200 200" aria-hidden="true"><circle class="trk" cx="100" cy="100" r="86" stroke-dasharray="405.3 540.4"/><circle class="arc" id="arc" cx="100" cy="100" r="86" stroke-dasharray="0 540.4"/></svg>
+            <div class="rv"><svg class="ico" id="ico" viewBox="0 0 100 100" aria-hidden="true"></svg></div></div>
+          <div><span class="badge" id="badgeTxt">Esperando datos</span>
+            <h2 id="estado">Sin señal</h2><p id="estadoTxt">Esperando datos del equipo…</p></div>
+        </div>
+        <div class="tiles" id="tiles" aria-label="Lecturas por sensor"></div>
+        <div class="pred" id="pred">Tendencia: esperando datos</div>
+        <div class="todo"><h3>Qué hacer</h3><ol id="todo"></ol></div>
+        <div class="demo" id="demoBox" hidden>
+          <p><b>Modo demostración.</b> Los datos son simulados. Elige una situación:</p>
+          <div class="seg" id="scen">
+            <button data-s="normal" aria-pressed="true">Normal</button>
+            <button data-s="fuga">Fuga de gas</button>
+            <button data-s="humo">Humo o fuego</button>
+            <button data-s="vapor">Vapor</button>
+            <button data-s="alcohol">Alcohol</button>
+            <button data-s="apagado">Sin señal</button>
+          </div>
+          <div class="seg" style="margin-top:8px"><button id="demoPers" aria-pressed="false">Simular persona cerca</button></div>
+        </div>
+        <div class="row">
+          <button class="btn pri" id="btnAlert">Activar sonido y voz</button>
+          <button class="btn" id="btnTest">Probar alarma</button>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card" style="grid-column:1/-1">
+          <h3>Tendencia del gas (últimos 5 minutos)</h3>
+          <div class="big sm" id="gasV">--</div>
+          <div class="mwrap"><div class="meter" id="meter"></div><div class="mk" id="mk" style="left:0"></div></div>
+          <div class="scale"><span>Limpio</span><span>Alerta</span><span>Peligro</span></div>
+          <div class="spark"><svg id="spark" preserveAspectRatio="none"></svg></div>
+          <div class="scale"><span>hace 5 min</span><span>ahora</span></div>
+        </div>
+        <div class="card" style="grid-column:1/-1"><h3>Cambios recientes</h3><ul class="ev" id="cambios"><li>Todavía no hay cambios.</li></ul>
+        </div>
+        <div class="card orig" style="grid-column:1/-1"><h3>¿Qué gas es?</h3><b id="oT">--</b><span id="oD"></span>
+          <p id="oNota" style="font-size:13px;color:var(--mut);margin:8px 0 0">Es una suposición: los sensores no identifican el gas exacto.</p>
+          <details id="entrena" style="margin-top:12px">
+            <summary class="btn" style="display:inline-flex;align-items:center;list-style:none">Enseñarle un gas</summary>
+            <ol style="margin:12px 0 10px;padding-left:20px;color:#c9d4dc;font-size:15px">
+              <li>Con el aire limpio, elige <b>Aire limpio</b> y graba.</li>
+              <li>Acerca la fuente (encendedor <b>sin prender</b>, alcohol en gel, aerosol o un cerillo recién apagado), elige su nombre y graba.</li>
+              <li>Aleja la fuente y espera a que el semáforo vuelva a verde antes de enseñarle otro.</li>
+            </ol>
+            <div class="seg" id="clases">
+              <button aria-pressed="true">Aire limpio</button><button>Gas LP</button><button>Alcohol</button><button>Aerosol</button><button>Humo</button>
+            </div>
+            <div class="row"><button class="btn pri" id="btnGrabar" type="button">Grabar muestra (15 s)</button><button class="btn" id="btnBorrarN" type="button">Borrar lo aprendido</button></div>
+            <p id="nMsg" style="margin:10px 0 0;font-weight:600"></p>
+            <ul class="ev" id="nLista"></ul>
+          </details>
+        </div>
+        <p class="foot" style="grid-column:1/-1;margin:0">Última lectura: <b id="ult">--</b></p>
+      </div>
     </div>
-    <div class="ticks" id="ticks"></div>
-    <div class="umbrales" id="umbrales"></div>
-  </div>
-</div>
+  </section>
 
-<div class="status"><span id="dot" class="dot"></span><span id="stxt">Esperando configuración…</span></div>
-
-<!-- Asistente: tarjeta que abre el chat a pantalla completa -->
-<div class="card" id="iaCard" style="margin-top:14px">
-  <div class="lbl">Asistente</div>
-  <div style="color:var(--sub);font-size:.9rem;margin-top:6px">Pregunta sobre las lecturas y consulta todas tus respuestas anteriores.</div>
-  <button class="btn" id="abrirIA">🤖 Abrir asistente</button>
-</div>
-
-<!-- Análisis e historial -->
-<div class="encab">
-  <h2>Análisis e historial</h2>
-  <div class="rangos" id="rangos">
-    <button class="rg" data-r="1h">1 h</button>
-    <button class="rg" data-r="6h">6 h</button>
-    <button class="rg" data-r="24h">24 h</button>
-    <button class="rg" data-r="7d">7 d</button>
-    <button class="rg" data-r="30d">30 d</button>
-  </div>
-</div>
-
-<div class="card">
-  <div class="cabeza">
-    <h2>Estadísticas del periodo</h2>
-    <span class="nota" id="resumenPeriodo">Cargando…</span>
-  </div>
-  <div class="stats">
-    <div class="stat s-t"><h3>Temperatura</h3>
-      <div class="f">Promedio: <b id="tAvg">--</b></div>
-      <div class="f">Mín: <b id="tMin">--</b></div>
-      <div class="f">Máx: <b id="tMax">--</b></div></div>
-    <div class="stat s-h"><h3>Humedad</h3>
-      <div class="f">Promedio: <b id="hAvg">--</b></div>
-      <div class="f">Mín: <b id="hMin">--</b></div>
-      <div class="f">Máx: <b id="hMax">--</b></div></div>
-    <div class="stat s-g"><h3>Nivel de gas</h3>
-      <div class="f">Promedio: <b id="gAvg">--</b></div>
-      <div class="f">Mín: <b id="gMin">--</b></div>
-      <div class="f">Máx: <b id="gMax">--</b></div></div>
-  </div>
-  <div class="fuente" id="fuente"></div>
-</div>
-
-<div class="graficas">
-  <div class="card"><h3>Tendencia de temperatura</h3><canvas id="gTemp"></canvas></div>
-  <div class="card"><h3>Tendencia de humedad</h3><canvas id="gHum"></canvas></div>
-  <div class="card full"><h3>Tendencia de gas</h3><canvas id="gGas"></canvas></div>
-</div>
-
-<div class="card" style="margin-top:14px">
-  <div class="cabeza" style="margin-bottom:6px">
-    <h2>Lecturas detalladas</h2>
-    <span class="nota" id="pagInfo"></span>
-  </div>
-  <div class="tabla">
-    <table>
-      <thead><tr><th>Hora</th><th>Temp</th><th>Humedad</th><th>Gas</th><th>Estado</th></tr></thead>
-      <tbody id="tbody"><tr><td colspan="5" style="color:#6b7280">Cargando…</td></tr></tbody>
-    </table>
-  </div>
-  <div class="pag">
-    <button id="pagAnt">← Anterior</button>
-    <button id="pagSig">Siguiente →</button>
-  </div>
-</div>
-
-<div id="iaPanel" role="dialog" aria-label="Asistente" aria-modal="true">
-  <div class="iahead">
-    <h2>🤖 Asistente</h2>
-    <div class="vol">🔈<input type="range" id="iaVol" min="0" max="100" value="100" aria-label="Volumen de la voz"><span id="iaVolTxt">100</span></div>
-    <button id="iaBorrar" title="Borrar conversación" aria-label="Borrar conversación">Borrar</button>
-    <button id="iaCerrar" title="Cerrar" aria-label="Cerrar asistente">✕</button>
-  </div>
-  <div id="iaMsgs"><div class="iainner" id="iaLista"></div></div>
-  <div class="iafoot"><div class="inner">
-    <div class="chips">
-      <button class="chip" data-q="Explica en palabras simples cómo van las lecturas ahora.">Explicar lecturas</button>
-      <button class="chip" data-q="¿Ves alguna tendencia en el gas de los últimos minutos?">Tendencia</button>
-      <button class="chip" data-q="¿Qué debo hacer con estos valores?">¿Qué hago?</button>
-      <button class="chip" data-q="¿Cuándo fue el valor más alto de gas hoy y cuánto tiempo estuvo en alarma?">Pico de hoy</button>
+  <!-- HISTORIAL -->
+  <section class="view" id="v-historial">
+    <h2 style="font-size:30px">Historial</h2>
+    <div class="seg" id="rangos" style="margin-top:12px">
+      <button data-r="3600" aria-pressed="true">1 hora</button><button data-r="21600">6 horas</button>
+      <button data-r="86400">24 horas</button><button data-r="604800">7 días</button><button data-r="2592000">30 días</button>
     </div>
-    <div id="iaOut" class="iaestado"></div>
-    <div class="iabar">
-      <input id="iaq" placeholder="Pregunta sobre las lecturas…" maxlength="300" autocomplete="off">
-      <button id="iaBtn" title="Enviar" aria-label="Enviar">➤</button>
+    <p id="hAviso" style="color:var(--mut);margin:10px 0 0"></p>
+    <div class="sum" id="sum"></div>
+    <div class="card" style="margin-top:14px"><h3>Calidad del aire</h3>
+      
+      <div class="fig"><svg id="chGas"></svg></div></div>
+    <div class="card" style="margin-top:14px"><h3>Temperatura y humedad</h3>
+      <div class="leg"><span><i style="background:#fb923c"></i>Temperatura (°C)</span><span><i style="background:var(--info)"></i>Humedad (%)</span></div>
+      <div class="fig"><svg id="chTH"></svg></div></div>
+    <div class="card" style="margin-top:14px"><h3>Alarmas registradas</h3><ul class="ev" id="ev"></ul></div>
+  </section>
+
+  <!-- ASISTENTE -->
+  <section class="view" id="v-asistente">
+    <h2 style="font-size:30px">Asistente</h2>
+    <p style="color:var(--mut);margin:6px 0 0">Pregunta lo que necesites sobre las lecturas. Toca una pregunta rápida o escribe la tuya.</p>
+    <div class="seg" id="chips" style="margin-top:12px">
+      <button>¿Hay peligro ahora?</button><button>¿Qué gas podría ser?</button><button>¿Qué pasó en la última hora?</button><button>¿Qué hago?</button>
     </div>
-  </div></div>
-</div>
+    <div class="chat" id="chat"></div>
+    <form class="ask" id="askF"><input id="askI" placeholder="Escribe tu pregunta…" maxlength="300" autocomplete="off"><button class="btn pri">Enviar</button></form>
+  </section>
 
-<!-- QR: visible para todos -->
-<details id="qrsec">
-  <summary>📱 QR</summary>
-  <div class="qrwrap">
-    <button class="btn" id="btnQR">Mostrar QR</button>
-    <div><div id="qrbox"></div></div>
-    <div id="qrmsg"></div>
-  </div>
-</details>
+  <!-- AJUSTES -->
+  <section class="view" id="v-ajustes">
+    <h2 style="font-size:30px">Ajustes</h2>
+    <form id="cfgF" class="card" style="margin-top:12px">
+      <div class="field"><label for="cTok">Token de Blynk</label><input id="cTok" type="password" autocomplete="off"><small>Se guarda solo en este navegador.</small></div>
+      <div class="field"><label for="cSrv">Servidor de Blynk</label><input id="cSrv" placeholder="blynk.cloud"></div>
+      <div class="field"><label for="cWk">Dirección del Worker (asistente e historial)</label><input id="cWk" placeholder="https://…workers.dev"></div>
+      <div class="two">
+        <div class="field"><label for="cUa">Umbral de alerta (gas)</label><input id="cUa" type="number" inputmode="numeric"></div>
+        <div class="field"><label for="cUc">Umbral de peligro (gas)</label><input id="cUc" type="number" inputmode="numeric"></div>
+        <div class="field"><label for="cUt">Temperatura máxima (°C)</label><input id="cUt" type="number" inputmode="numeric"></div>
+      </div>
+      <div class="row"><button class="btn pri">Guardar y conectar</button><button class="btn" type="button" id="btnDemo">Usar modo demostración</button></div>
+      <p id="cfgMsg" style="font-weight:700;margin:10px 0 0"></p>
+    </form>
+    <div class="card" style="margin-top:14px">
+      <h3>Compartir acceso con QR</h3>
+      <p style="margin:6px 0 10px">Genera un código QR para abrir esta página ya conectada en otro celular. Quien tenga el QR puede ver las lecturas: compártelo solo con personas de confianza.</p>
+      <button class="btn" type="button" id="btnQR">Mostrar QR</button>
+      <div id="qrBox" style="margin-top:12px;width:fit-content;background:#fff;padding:10px;border-radius:12px" hidden></div>
+      <p id="qrMsg" style="color:var(--mut);margin:8px 0 0"></p>
+    </div>
+    <p class="foot">Proyecto <b>Sensor de Riesgo Inteligente</b> · Instituto COBACH 234.<br>Diseñado por Ricardo González Martínez y Alexis de Jesús García Hernández.<br>Este equipo es un proyecto escolar y no sustituye a un detector de gas certificado.</p>
+  </section>
+</main>
 
-<!-- Configuración: solo el administrador -->
-<details id="cfg">
-  <summary>⚙ Configuración</summary>
-  <label for="token">Token</label>
-  <input id="token" type="password" placeholder="Pega aquí tu token" autocomplete="off">
-  <label for="server">Servidor</label>
-  <input id="server" value="blynk.cloud">
-  <label for="ualarm">A</label>
-  <input id="ualarm" type="number" value="2400">
-  <label for="ucrit">B</label>
-  <input id="ucrit" type="number" value="3600">
-  <button class="btn" id="save">Guardar y conectar</button>
-  <div id="err" class="err"></div>
-</details>
-
-<!-- Descargar app -->
-<div class="card appbox" id="appBox">
-  <button class="btn" id="btnApp">📲 Descargar app</button>
-  <div id="appMsg"></div>
-</div>
+<nav id="nav">
+  <a href="#ahora" class="act"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Ahora</a>
+  <a href="#historial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M6 16l4-6 4 3 5-8"/></svg>Historial</a>
+  <a href="#asistente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H9l-5 4z"/></svg>Asistente</a>
+  <a href="#ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>Ajustes</a>
+</nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-// Pines virtuales de Blynk (los mismos de tu código del ESP32)
-const PINES = { temp:"v0", hum:"v1", gas:"v2", alarma:"v3" };
-const MAX_PUNTOS = 90;          // ~3 minutos si se pide cada 2 s
-// ---------- Modo claro / oscuro ----------
-const esOscuro = () => document.documentElement.getAttribute("data-tema") === "oscuro";
-function marcarTema(){
-  $("temaSol").classList.toggle("on", !esOscuro());
-  $("temaLuna").classList.toggle("on", esOscuro());
-}
-function cambiarTema(){
-  const nuevo = esOscuro() ? "claro" : "oscuro";
-  document.documentElement.setAttribute("data-tema", nuevo);
-  try{ localStorage.setItem("tema", nuevo); }catch(e){}
-  marcarTema();
-  if(typeof dibujarGraficas === "function") dibujarGraficas();
-}
-const CADA_MS = 2000;
+{
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hora = ts => new Date(ts * 1000).toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+const fecha = ts => new Date(ts * 1000).toLocaleString('es-MX', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+const now = () => Date.now() / 1000;
 
-const $ = id => document.getElementById(id);
-let cfg = { token:"", server:"blynk.cloud", ualarm:2400, ucrit:3600 };
-let historial = [];
-let histT = [], histH = [];   // temperatura y humedad recientes (para estimar el posible origen)
-let timer = null;
-
-// Dirección de tu Worker de Cloudflare (termina en workers.dev).
-const URL_IA = "https://sensoria.andrmsshater100.workers.dev";
-let ultimo = { temp:null, hum:null, gas:null, nivel:0 };
-let iaOcupada = false;
-
-try { Object.assign(cfg, JSON.parse(localStorage.getItem("monitorCfg") || "{}")); } catch(e){}
-
+// ---------- Configuración ----------
+const WORKER_DEF = 'https://sensoria.andrmsshater100.workers.dev';
+const cfg = {token:'', srv:'blynk.cloud', worker:WORKER_DEF, ua:2400, uc:3600, ut:35, demo:false};
+try { Object.assign(cfg, JSON.parse(localStorage.getItem('sri_cfg') || '{}')); } catch (e) {}
+const guardar = () => { try { localStorage.setItem('sri_cfg', JSON.stringify(cfg)); } catch (e) {} };
 // Si la página se abrió desde el QR, el token viene en el enlace (#token=...)
-function leerEnlace(){
-  if(!location.hash) return;
-  const p = new URLSearchParams(location.hash.slice(1));
+if (location.hash.startsWith('#token=')) {
+  const tk = decodeURIComponent(location.hash.slice(7)).trim();
+  if (tk) { cfg.token = tk; cfg.demo = false; guardar(); }
+  history.replaceState(null, '', location.pathname + '#ahora');
+}
+if (!cfg.worker) cfg.worker = WORKER_DEF;
+if (!cfg.token) cfg.demo = true;
 
-  // #admin: vuelve a mostrar la configuración en este navegador
-  if(p.has("admin")){
-    cfg.vista = false;
-    try{ localStorage.setItem("monitorCfg", JSON.stringify(cfg)); }catch(e){}
-    history.replaceState(null, "", location.pathname + location.search);
-    return;
+// ---------- Estado ----------
+const st = {mq5:null, mq135:null, pers:null, calHW:null, fan:null, demoPers:false, estadoK:'', desde:Date.now() / 1000, cambios:[], temp:null, hum:null, gas:null, v3:0, online:false, last:0, buf:[], warmUntil:0, everOnline:false, scen:'normal', prevKey:''};
+let tick = 0, timer = null, soloV3 = false;
+
+// ---------- Lectura real (Blynk) ----------
+async function leerBlynk() {
+  const base = `https://${cfg.srv || 'blynk.cloud'}/external/api`, t = encodeURIComponent(cfg.token);
+  if (tick % 5 === 0) {
+    const hw = (await (await fetch(`${base}/isHardwareConnected?token=${t}`)).text()).trim();
+    if (hw !== 'true') { marcarOffline(); return; }
   }
-
-  const tk = p.get("token");
-  if(!tk) return;
-  cfg.token = tk;
-  cfg.vista = true;   // modo solo lectura: oculta la configuración
-  if(p.get("server")) cfg.server = p.get("server");
-  try{ localStorage.setItem("monitorCfg", JSON.stringify(cfg)); }catch(e){}
-  // Quita el token de la barra de direcciones
-  history.replaceState(null, "", location.pathname + location.search);
+  // Versión 2 del equipo: V4 a V8. Si la plantilla aún no los tiene, se leen solo V0 a V3.
+  let r = soloV3 ? null : await fetch(`${base}/get?token=${t}&v0&v1&v2&v3&v4&v5&v6&v7&v8`);
+  if (!r || !r.ok) { soloV3 = true; r = await fetch(`${base}/get?token=${t}&v0&v1&v2&v3`); }
+  if (!r.ok) throw new Error('Blynk ' + r.status);
+  const d = await r.json(), g = k => d[k] ?? d[k.toUpperCase()], n = k => { const v = parseFloat(g(k)); return Number.isFinite(v) ? v : null; };
+  nuevaLectura(n('v0'), n('v1'), n('v2'), n('v3'), {m5:n('v4'), m135:n('v5'), pers:n('v6'), cal:n('v7'), fan:n('v8')});
 }
 
-function aplicarCfgEnPantalla(){
-  $("token").value = cfg.token;
-  $("server").value = cfg.server;
-  $("ualarm").value = cfg.ualarm;
-  $("ucrit").value = cfg.ucrit;
-  const pos = v => Math.min(100, Math.max(0, v/4095*100));
-  $("mAlarm").style.left = "calc(" + pos(cfg.ualarm) + "% - 1px)";
-  $("mCrit").style.left  = "calc(" + pos(cfg.ucrit)  + "% - 1px)";
-  $("mAlarm").style.background = "var(--warn)";
-  $("mCrit").style.background  = "var(--crit)";
+// ---------- Simulación (modo demostración) ----------
+const ESC = {normal:{g:650,m5:700,m135:800,t:27,h:58}, fuga:{g:3950,m5:3400,m135:1700,t:27,h:57}, humo:{g:3000,m5:950,m135:3500,t:42,h:48},
+  vapor:{g:2650,m5:850,m135:1500,t:30,h:92}, alcohol:{g:2500,m5:1300,m135:2900,t:27,h:60}};
+let sim = {g:620, m5:700, m135:800, t:27, h:58}, simFan = false;
+function leerDemo() {
+  if (st.scen === 'apagado') { marcarOffline(); return; }
+  const e = ESC[st.scen], k = st.scen === 'fuga' ? 0.05 : 0.12;
+  sim.g += (e.g - sim.g) * k + (Math.random() - .5) * 40;
+  sim.t += (e.t - sim.t) * 0.1 + (Math.random() - .5) * 0.2;
+  sim.h += (e.h - sim.h) * 0.1 + (Math.random() - .5) * 0.6;
+  sim.m5 += (e.m5 - sim.m5) * k + (Math.random() - .5) * 40;
+  sim.m135 += (e.m135 - sim.m135) * k + (Math.random() - .5) * 40;
+  const c = v => Math.max(0, Math.min(4095, Math.round(v))), g = c(sim.g);
+  let v3 = g >= cfg.uc ? 2 : (g > cfg.ua || sim.t > cfg.ut) ? 1 : 0;
+  if (g > cfg.ua && st.demoPers) v3 = 2;
+  if (v3 === 1 && g > cfg.ua) simFan = true; else if (v3 === 0) simFan = false;
+  nuevaLectura(sim.t, sim.h, g, v3, {m5:c(sim.m5), m135:c(sim.m135), pers:st.demoPers ? 1 : 0, cal:0, fan:simFan ? 1 : 0});
+}
 
-  // Escala de 500 en 500 (marcas dentro de la barra y números debajo)
-  const bar = document.querySelector(".bar");
-  bar.querySelectorAll(".tk").forEach(e => e.remove());
-  let ticks = "";
-  for(let v = 0; v <= 4000; v += 500){
-    if(v === 2500 || v === 3500) continue;   // para que no choquen con Alarma y Crítico
-    const t = document.createElement("div"); t.className = "tk"; t.style.left = pos(v) + "%";
-    bar.appendChild(t);
-    const alin = v === 0 ? "transform:none" : "";
-    ticks += '<span style="left:' + pos(v) + '%;' + alin + '">' + v + '</span>';
+function nuevaLectura(t, h, g, v3, x) {
+  if (!Number.isFinite(g)) return;
+  x = x || {};
+  st.mq5 = x.m5 ?? null; st.mq135 = x.m135 ?? null; st.pers = x.pers ?? null; st.calHW = x.cal ?? null; st.fan = x.fan ?? null;
+  if (grabando && st.mq5 !== null && st.mq135 !== null) grabando.muestras.push([g, st.mq5, st.mq135]);
+  if (!st.online && st.everOnline) st.warmUntil = now() + 150;   // se volvió a encender: el MQ-2 se está calentando
+  st.online = true; st.everOnline = true; st.last = now();
+  st.temp = Number.isFinite(t) ? t : null; st.hum = Number.isFinite(h) ? h : null; st.gas = g; st.v3 = Number.isFinite(v3) ? v3 : 0;
+  st.buf.push({ts: st.last, g}); if (st.buf.length > 150) st.buf.shift();
+  pintar();
+}
+function marcarOffline() { st.online = false; pintar(); }
+
+async function ciclo() {
+  try { cfg.demo ? leerDemo() : await leerBlynk(); }
+  catch (e) { if (now() - st.last > 10) marcarOffline(); }
+  tick++;
+}
+function arrancar() { clearInterval(timer); st.buf = []; st.online = false; st.everOnline = false; tick = 0; ciclo(); timer = setInterval(ciclo, 2000); $('#demoBox').hidden = !cfg.demo; }
+
+// ---------- Análisis ----------
+function tendencia() {
+  const b = st.buf.slice(-30).map(x => x.g);
+  if (b.length < 10) return {clase:'insuf', delta:0};
+  const avg = a => a.reduce((s, x) => s + x, 0) / a.length, d = avg(b.slice(-5)) - avg(b.slice(0, 5));
+  return {delta:d, clase: d > 200 ? 'sube_rapido' : d > 60 ? 'sube' : d < -200 ? 'baja_rapido' : d < -60 ? 'baja' : 'estable'};
+}
+function pendiente() {   // puntos por segundo (regresión lineal del último minuto)
+  const b = st.buf.slice(-30); if (b.length < 10) return 0;
+  const t0 = b[0].ts, n = b.length, xs = b.map(p => p.ts - t0), ys = b.map(p => p.g);
+  const mx = xs.reduce((a, x) => a + x, 0) / n, my = ys.reduce((a, y) => a + y, 0) / n;
+  let num = 0, den = 0; xs.forEach((x, i) => { num += (x - mx) * (ys[i] - my); den += (x - mx) ** 2; });
+  return den ? num / den : 0;
+}
+function nivel() {
+  if (!st.online) return 'off';
+  const g = st.gas, gl = Math.max(g >= cfg.uc ? 2 : g > cfg.ua ? 1 : 0, nivelRel(st.mq5, base.m5), nivelRel(st.mq135, base.m135)), n = Math.max(st.v3 || 0, gl);
+  if (st.calHW === 1 || (st.calHW === null && now() < st.warmUntil)) return 'warm';
+  if (n >= 2) return 'peligro';
+  if (n === 1) return gl >= 1 ? 'gas' : 'calor';
+  return 'ok';
+}
+function origen() {
+  const g = st.gas, t = st.temp, h = st.hum, tr = tendencia().clase;
+  const gasAlto = g > cfg.ua, tAlta = t !== null && t > cfg.ut, hAlta = h !== null && h > 76, hVapor = h !== null && h >= 85;
+  const activo = gasAlto || tr === 'sube_rapido';
+  if (hVapor && activo) return ['Vapor o ambiente húmedo', 'La humedad es muy alta y el vapor de agua hace que el sensor marque de más. Lo más probable es que no sea un gas peligroso.'];
+  if (tAlta && activo) return ['Humo o fuego', 'El gas y la temperatura subieron al mismo tiempo. Podría haber algo quemándose.'];
+  if (hAlta && activo) return ['Aerosol', 'El gas subió junto con la humedad. Podría ser un desodorante, insecticida o ambientador.'];
+  if (tr === 'sube_rapido') return ['Fuga de gas o alcohol', 'El gas sube rápido y no hay calor. Podría ser una fuga de gas LP o vapor de alcohol.'];
+  if (tr === 'sube' && g > cfg.ua / 2) return ['Gas acumulándose', 'El gas sube lento pero sin parar. Podría estarse acumulando en el lugar.'];
+  if (gasAlto) return ['Gas alto sin causa clara', 'El gas está alto pero no coincide con una situación conocida.'];
+  if (tAlta) return ['Calor sin gas', 'Hace mucho calor cerca del sensor, pero no hay señales de gas.'];
+  return ['Aire limpio', 'No hay señales de gas.'];
+}
+
+const ESTADOS = {
+  ok:     {t:'Todo normal', d:'No se detecta gas ni calor peligroso.', icon:'ok',
+           q:['No se necesita ninguna acción.', 'Si huele a gas, ventile y salga aunque el sensor marque normal.']},
+  gas:    {t:'Alerta de gas', d:'El nivel de gas pasó el límite de alerta.', icon:'warn',
+           q:['Abra puertas y ventanas.', 'No encienda flama, cerillos ni interruptores de luz.', 'Revise estufa, tanque de gas, aerosoles o alcohol cercanos.', 'Si el nivel sigue subiendo, salga del lugar y llame al 911.']},
+  calor:  {t:'Alerta de calor', d:`La temperatura pasó el límite.`, icon:'warn',
+           q:['Busque una fuente de calor cerca del equipo.', 'Ventile el lugar.', 'Si ve humo o fuego, salga y llame al 911.']},
+  peligro:{t:'Peligro', d:'Nivel de gas crítico.', icon:'bad',
+           q:['Salga del lugar y aleje a las personas.', 'No encienda ni apague luces ni aparatos; no use flama.', 'Si es seguro, deje puertas y ventanas abiertas al salir.', 'Llame al 911 desde afuera.']},
+  warm:   {t:'Calentando', d:'El sensor de gas se está calentando (2 a 3 minutos).', icon:'warm',
+           q:['Espere unos minutos.', 'En este momento es normal que la lectura de gas salga alta.']},
+  off:    {t:'Sin señal', d:'El equipo no está enviando datos.', icon:'off',
+           q:['Revise que el equipo tenga corriente y que el WiFi funcione.', 'Mientras no haya señal, el lugar NO está vigilado.']}
+};
+const ICONOS = {
+  ok:'<circle cx="50" cy="50" r="46" fill="currentColor" opacity=".25"/><path d="M30 52l13 13 27-29" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>',
+  warn:'<path d="M50 8L94 88H6z" fill="rgba(0,0,0,.15)" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/><rect x="45" y="36" width="10" height="28" rx="4" fill="currentColor"/><circle cx="50" cy="75" r="6" fill="currentColor"/>',
+  bad:'<path d="M50 8L94 88H6z" fill="rgba(255,255,255,.22)" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/><rect x="45" y="36" width="10" height="28" rx="4" fill="currentColor"/><circle cx="50" cy="75" r="6" fill="currentColor"/>',
+  warm:'<circle cx="50" cy="50" r="40" fill="rgba(255,255,255,.18)" stroke="currentColor" stroke-width="6"/><path d="M50 26v26l16 10" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>',
+  off:'<path d="M14 40a52 52 0 0172 0M26 54a34 34 0 0148 0M38 67a16 16 0 0124 0" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity=".6"/><circle cx="50" cy="80" r="6" fill="currentColor"/><path d="M18 18l64 64" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>'
+};
+
+// ---------- Pintar pantalla ----------
+function pintar() {
+  const k = nivel(), E = ESTADOS[k];
+  $('#hero').dataset.s = k; $('#estado').textContent = E.t;
+  $('#estadoTxt').textContent = k === 'peligro' && st.pers === 1 ? 'Hay gas y hay personas cerca del área.' : k === 'calor' && st.temp !== null ? `La temperatura (${st.temp.toFixed(1)} °C) pasó el límite de ${cfg.ut} °C.` : E.d;
+  $('#ico').innerHTML = ICONOS[E.icon];
+  if (k !== st.estadoK) { st.estadoK = k; st.desde = Date.now() / 1000; registrarCambio(k); }
+  $('#badgeTxt').textContent = 'Así desde las ' + hora(st.desde);
+  const gv = st.online && st.gas !== null ? st.gas : 0;
+  $('#arc').setAttribute('stroke-dasharray', `${(gv / 4095 * 405.3).toFixed(1)} 540.4`);
+  $('#todo').innerHTML = E.q.map(x => `<li>${esc(x)}</li>`).join('');
+  const pill = $('#pill'); pill.classList.toggle('on', st.online);
+  $('#pillTxt').textContent = cfg.demo ? (st.online ? 'Demostración' : 'Demo sin señal') : (st.online ? 'Conectado' : 'Sin conexión');
+
+  const g = st.gas, on = st.online && g !== null;
+  const gt = !on ? ['--',''] : g >= cfg.uc ? ['Gas peligroso','var(--bad)'] : g > cfg.ua ? ['Hay gas','var(--warn)'] : g > cfg.ua * .6 ? ['Un poco de gas','var(--warn)'] : ['Aire limpio','var(--ok)'];
+  $('#gasV').textContent = gt[0]; $('#gasV').style.color = gt[1];
+  $('#mk').style.left = (on ? g / 4095 * 100 : 0) + '%';
+
+  pintarTiles(on, k);
+
+  const id = on ? identificar() : null;
+  if (id) { $('#oT').textContent = id.n === 'Aire limpio' ? 'Aire limpio' : 'Podría ser: ' + id.n; $('#oD').textContent = id.n === 'Aire limpio' ? 'No reconozco ningún gas.' : `(${id.c}) Lo reconozco por la huella de los tres sensores.`; $('#oNota').textContent = 'Identificación aprendida con sus propias muestras. Es una estimación, no una medición certificada.'; }
+  else if (on) { const o = origen(); $('#oT').textContent = o[0]; $('#oD').textContent = o[1]; $('#oNota').textContent = 'Es una suposición: los sensores no identifican el gas exacto.'; }
+  else { $('#oT').textContent = '--'; $('#oD').textContent = ''; }
+
+  // Predicción
+  const p = $('#pred'), s = pendiente();
+  p.classList.remove('up');
+  p.hidden = k === 'warm' || k === 'off' || k === 'peligro';
+  if (!on || st.buf.length < 10) p.textContent = 'Revisando si el aire está cambiando…';
+  else if (s > 0.4 && g < cfg.uc) {
+    const meta = g < cfg.ua ? cfg.ua : cfg.uc, min = Math.max(1, Math.round((meta - g) / s / 60));
+    p.classList.add('up');
+    p.textContent = `El riesgo va en aumento. Si sigue así, podría pasar a ${g < cfg.ua ? 'alerta' : 'peligro'} ${min <= 1 ? 'en menos de 2 minutos' : `en unos ${min} minutos`}.`;
+  } else if (s < -0.4) p.textContent = 'El aire está mejorando.';
+  else p.textContent = 'Sin cambios: el aire se mantiene igual.';
+
+  $('#entrena').hidden = st.mq5 === null;
+  dibujarSpark(); avisar(k);
+}
+
+function registrarCambio(k) {
+  const nombre = {ok:'Todo normal', gas:'Alerta de gas', calor:'Alerta de calor', peligro:'Peligro', warm:'Calentando', off:'Sin señal'}[k];
+  const col = {ok:'var(--ok)', gas:'var(--warn)', calor:'var(--warn)', peligro:'var(--bad)', warm:'var(--info)', off:'var(--off)'}[k];
+  st.cambios.unshift({ts:Date.now() / 1000, nombre, col}); st.cambios = st.cambios.slice(0, 8);
+  $('#cambios').innerHTML = st.cambios.map(c => `<li style="flex-direction:row;justify-content:space-between"><b style="color:${c.col}">${c.nombre}</b><span class="t" style="color:var(--mut)">${hora(c.ts)}</span></li>`).join('');
+}
+// Cuadros por sensor (estilo detector de gases)
+const base = {m5:null, m135:null};
+function nivelRel(v, b) { if (v === null || !b) return 0; return v > b * 3 && v - b > 1200 ? 2 : v > b * 2 && v - b > 500 ? 1 : 0; }
+function pintarTiles(on, k) {
+  const warm = k === 'warm';
+  if (on && !warm) {   // aire limpio de referencia para MQ-5 y MQ-135 (igual que el equipo)
+    if (st.mq5 !== null && base.m5 === null) { base.m5 = st.mq5; base.m135 = st.mq135; }
+    else if (k === 'ok' && st.mq5 !== null) { base.m5 = base.m5 * .995 + st.mq5 * .005; base.m135 = base.m135 * .995 + st.mq135 * .005; }
   }
-  $("ticks").innerHTML = ticks;
-  $("umbrales").innerHTML =
-    '<span style="left:' + pos(cfg.ualarm) + '%;color:var(--warn)">Alarma ' + cfg.ualarm + '</span>' +
-    '<span style="left:' + pos(cfg.ucrit)  + '%;top:17px;transform:translateX(-80%);color:var(--crit)">Alarma crítica ' + cfg.ucrit + '</span>';
+  const P = v => Math.max(0, Math.min(100, Math.round(v / 4095 * 100)));
+  const EST = ['OK', 'ALERTA', 'PELIGRO'], S = ['ok', 'warn', 'bad'];
+  const gasT = (nombre, sens, color, v, ua, uc) => {
+    if (!on || v === null) return {n:nombre, sub:sens, a:color, chip:'SIN DATO', v:'--', s:'off', bar:0, ta:P(ua), tc:P(uc), d:`<em style="--d:#fbbf24">Alerta ${P(ua)}%</em><em style="--d:#fb4d6d">Peligro ${P(uc)}%</em>`};
+    const nv = v >= uc ? 2 : v > ua ? 1 : 0;
+    return {n:nombre, sub:sens, a:color, chip: warm ? 'PREP.' : EST[nv], v:P(v) + '<small>%</small>', s: warm ? 'ok' : S[nv], bar:P(v), ta:P(ua), tc:P(uc), d:`<em style="--d:#fbbf24">Alerta ${P(ua)}%</em><em style="--d:#fb4d6d">Peligro ${P(uc)}%</em>`};
+  };
+  const rel = b => b ? [Math.max(b * 2, b + 500), Math.max(b * 3, b + 1200)] : [cfg.ua, cfg.uc];
+  const [a5, c5] = rel(base.m5), [a135, c135] = rel(base.m135);
+  const t = st.temp, h = st.hum, pv = st.pers, fv = st.fan;
+  const T = [
+    gasT('Gas LP', 'MQ-2', '#22d3ee', st.gas, cfg.ua, cfg.uc),
+    gasT('Gas natural', 'MQ-5', '#a78bfa', st.mq5, a5, c5),
+    gasT('Humo', 'MQ-135', '#cbd5e1', st.mq135, a135, c135),
+    {n:'Temperatura', sub:'DHT11', a:'#fb923c', chip: !on || t === null ? 'SIN DATO' : t > cfg.ut ? 'ALERTA' : 'OK',
+     v: !on || t === null ? '--' : t.toFixed(1) + '<small>°C</small>', s: !on || t === null ? 'off' : t > cfg.ut ? 'warn' : 'ok',
+     bar: t === null ? 0 : Math.min(100, t / 50 * 100), ta: cfg.ut / 50 * 100, d:`<em style="--d:#fbbf24">Alerta desde ${cfg.ut} °C</em>`},
+    {n:'Humedad', sub:'DHT11', a:'#60a5fa', chip: !on || h === null ? 'SIN DATO' : h >= 85 ? 'ALTA' : 'OK',
+     v: !on || h === null ? '--' : Math.round(h) + '<small>%</small>', s: !on || h === null ? 'off' : h >= 85 ? 'warn' : 'ok',
+     bar: h === null ? 0 : Math.min(100, h), ta: 85, d:'<em style="--d:#fbbf24">Muy alta desde 85%</em>'},
+    {n:'Personas', sub:'Presencia', a:'#2dd4bf', chip: !on || pv === null ? 'SIN DATO' : pv ? (k === 'peligro' ? 'EN RIESGO' : 'PRESENTES') : 'NADIE',
+     v: !on || pv === null ? '--' : pv ? 'Sí' : 'No', s: !on || pv === null ? 'off' : pv ? (k === 'peligro' ? 'bad' : 'warn') : 'ok',
+     d: 'Detectadas en los últimos 5 min'}
+  ];
+  if (on && fv !== null) T.push({n:'Ventilador', sub:'Relevador', a:'#38bdf8', chip: fv ? 'VENTILANDO' : 'EN ESPERA', v: fv ? 'ON' : 'OFF', s: fv ? 'info' : 'ok', d:'Se enciende solo en alerta de gas'});
+  $('#tiles').innerHTML = T.map(x => `<div class="tile" data-s="${x.s}" style="--a:${x.a}">
+    <div class="th"><div class="tn">${x.n}<small>${x.sub}</small></div><span class="chip">${x.chip}</span></div>
+    <div class="tv">${x.v}</div>
+    ${x.bar !== undefined ? `<div class="tbar"><i style="width:${x.bar}%"></i>${x.ta !== undefined ? `<b class="ta" style="left:${x.ta}%"></b>` : ''}${x.tc !== undefined ? `<b class="tc" style="left:${x.tc}%"></b>` : ''}</div>` : ''}
+    <div class="ts">${x.d}</div></div>`).join('');
+}
+function meterInit() {
+  const a = cfg.ua / 4095 * 100, c = cfg.uc / 4095 * 100;
+  $('#meter').innerHTML = `<i style="width:${a}%;background:var(--ok)"></i><i style="width:${c - a}%;background:var(--warn)"></i><i style="flex:1;background:var(--bad)"></i>`;
 }
 
-function banner(clase, titulo, sub){
-  const b = $("banner");
-  b.className = "banner " + clase;
-  b.innerHTML = titulo + (sub ? "<small>"+sub+"</small>" : "");
+const sparkEl = $('#spark');
+function dibujarSpark() {
+  const W = sparkEl.clientWidth, H = sparkEl.clientHeight; if (!W) return;
+  sparkEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const b = st.buf, n = 150, y = v => H - 4 - v / 4095 * (H - 8), x = i => i / (n - 1) * W;
+  const off = n - b.length, pts = b.map((p, i) => `${x(i + off).toFixed(1)},${y(p.g).toFixed(1)}`).join(' ');
+  sparkEl.innerHTML = `<line x1="0" x2="${W}" y1="${y(cfg.ua)}" y2="${y(cfg.ua)}" stroke="var(--warn)" stroke-dasharray="4 4"/>
+    <line x1="0" x2="${W}" y1="${y(cfg.uc)}" y2="${y(cfg.uc)}" stroke="var(--bad)" stroke-dasharray="4 4"/>
+    ${b.length > 1 ? `<polyline points="${pts}" fill="none" stroke="var(--acc)" stroke-width="2.5" stroke-linejoin="round"/>` : ''}`;
 }
+const roSpark = new ResizeObserver(dibujarSpark); roSpark.observe(sparkEl);
 
-function setEstado(ok, txt){
-  $("dot").className = "dot " + (ok ? "on" : "off");
-  $("stxt").textContent = txt;
+setInterval(() => {
+  if (!st.last) { $('#ult').textContent = '--'; return; }
+  const s = Math.round(now() - st.last);
+  $('#ult').textContent = s < 5 ? 'hace un momento' : s < 60 ? `hace ${s} s` : `hace ${Math.round(s / 60)} min`;
+  if (!cfg.demo && st.online && s > 15) marcarOffline();
+}, 1000);
+
+// ---------- Sonido, voz y vibración ----------
+let audio = null, alertas = false, beepT = null;
+function beep(f, dur) {
+  if (!audio) return;
+  const o = audio.createOscillator(), gn = audio.createGain();
+  o.frequency.value = f; o.type = 'square'; gn.gain.value = 0.08;
+  o.connect(gn); gn.connect(audio.destination); o.start(); o.stop(audio.currentTime + dur);
 }
-
-async function pedir(ruta){
-  const r = await fetch("https://" + cfg.server + "/external/api/" + ruta);
-  if(!r.ok) throw new Error("HTTP " + r.status);
-  return r.json();
+function hablar(txt) {
+  try { if (!alertas || !window.speechSynthesis) return; speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt); u.lang = 'es-MX'; speechSynthesis.speak(u); } catch (e) {}
 }
-
-// ---------- Historial guardado en este dispositivo (respaldo si el servidor aún no registra) ----------
-let histLocal = [];
-try{ histLocal = JSON.parse(localStorage.getItem("histLocal") || "[]"); if(!Array.isArray(histLocal)) histLocal = []; }catch(e){ histLocal = []; }
-let ultLocal = 0;
-function guardarLocal(t, h, g, n){
-  const ahora = Math.floor(Date.now()/1000);
-  const alto = n > 0 || g > cfg.ualarm;           // sobre el umbral de alarma (2400 hacia arriba)
-  if(alto){ if(ahora - ultLocal < 3) return; }    // valores altos: un informe cada 3 segundos
-  else if(ahora - ultLocal < 60) return;          // lecturas normales: una por minuto
-  ultLocal = ahora;
-  histLocal.push([ahora, isNaN(t) ? null : t, isNaN(h) ? null : h, g, n]);
-  const corte = ahora - 30*86400;
-  while(histLocal.length && histLocal[0][0] < corte) histLocal.shift();
-  // Si se llena, se borran primero las lecturas normales más viejas para conservar las altas
-  while(histLocal.length > 6000){
-    const i = histLocal.findIndex(p => !(p[4] > 0 || p[3] > cfg.ualarm));
-    histLocal.splice(i === -1 ? 0 : i, 1);
-  }
-  try{ localStorage.setItem("histLocal", JSON.stringify(histLocal)); }catch(e){}
-}
-
-// ---------- Posible origen de la alarma (suposición con reglas, no identifica el gas exacto) ----------
-const UMBRAL_TEMP = 35;   // °C, el mismo del ESP32
-const UMBRAL_HUM_VAPOR = 85;   // % de humedad: de aquí en adelante, gas + humedad se interpreta como vapor
-function tendenciaGas(h){
-  if(h.length < 10) return "insuficiente";
-  const k = Math.min(5, Math.floor(h.length/3));
-  const prom = a => a.reduce((s,x)=>s+x,0)/a.length;
-  const d = prom(h.slice(-k)) - prom(h.slice(0,k));
-  return d > 200 ? "sube_rapido" : d > 60 ? "sube" : "otra";
-}
-function origenAlarma(temp, hum, gas){
-  const t = tendenciaGas(historial);
-  const gasAlto = gas > cfg.ualarm;
-  const tempAlta = !isNaN(temp) && temp > UMBRAL_TEMP;
-  const humAlta = !isNaN(hum) && hum > 76;
-  const humVapor = !isNaN(hum) && hum >= UMBRAL_HUM_VAPOR;
-  const gasActivo = gasAlto || t === "sube_rapido";
-  if(humVapor && gasActivo) return ["Vapor o ambiente húmedo", "La humedad es muy alta (" + UMBRAL_HUM_VAPOR + " % o más) y el vapor de agua hace que el sensor de gas marque de más. Lo más probable es que no sea un gas peligroso."];
-  if(tempAlta && gasActivo) return ["Combustión, humo o fuego", "El gas y la temperatura están altos a la vez. Podría haber algo quemándose."];
-  if(humAlta && gasActivo)  return ["Aerosol", "El gas subió junto con la humedad (mayor a 76 %). Podría ser un aerosol, como un desodorante o ambientador."];
-  if(t === "sube_rapido")   return ["Fuga de gas o alcohol", "El gas sube rápido y la temperatura no está alta. Podría ser una fuga de gas o vapor de alcohol."];
-  if(t === "sube" && gas > cfg.ualarm/2) return ["Gas acumulado", "El gas va subiendo lento pero de forma sostenida. Podría estarse acumulando en el lugar."];
-  if(gasAlto)  return ["Gas alto sin causa clara", "El gas está sobre el umbral pero no coincide con ninguna situación conocida."];
-  if(tempAlta) return ["Calor sin gas", "La alarma es por temperatura y el gas está normal. Revisa si hay una fuente de calor cerca."];
-  return ["Causa no identificada", "El sistema reporta alarma, pero las lecturas no coinciden con ninguna situación conocida."];
-}
-function mostrarOrigen(conectado, nivelFinal, temp, hum, gas){
-  const el = $("origen");
-  if(!conectado || isNaN(gas)){ el.className = "origen"; el.innerHTML = ""; return; }
-  if(nivelFinal < 1){
-    el.className = "origen on o0";
-    el.innerHTML = "<b>Ninguna fuga detectada</b>";
-    return;
-  }
-  const o = origenAlarma(temp, hum, gas);
-  el.className = "origen on " + (nivelFinal === 2 ? "o2" : "o1");
-  el.innerHTML = "<b>Posible origen: " + o[0] + "</b>" + o[1] +
-                 "<small>Es una suposición: los sensores no identifican el tipo exacto de gas.</small>";
-}
-
-async function actualizar(){
-  if(!cfg.token) return;
-  const t = encodeURIComponent(cfg.token);
-  try{
-    const [datos, hw] = await Promise.all([
-      pedir("get?token=" + t + "&" + Object.values(PINES).join("&")),
-      pedir("isHardwareConnected?token=" + t)
-    ]);
-
-    const temp = parseFloat(datos[PINES.temp]);
-    const hum  = parseFloat(datos[PINES.hum]);
-    const gas  = parseInt(datos[PINES.gas]);
-    const nivel = parseInt(datos[PINES.alarma]);
-
-    $("vt").textContent = isNaN(temp) ? "--" : temp.toFixed(1);
-    $("vh").textContent = isNaN(hum)  ? "--" : Math.round(hum);
-    $("vg").textContent = isNaN(gas)  ? "--" : gas;
-
-    if(!isNaN(gas)){
-      const pct = Math.min(100, gas/4095*100);
-      const f = $("fill");
-      f.style.width = pct + "%";
-      f.style.background = gas >= cfg.ucrit ? "var(--crit)" : gas > cfg.ualarm ? "var(--warn)" : "var(--ok)";
-      f.classList.toggle("critico", gas >= cfg.ucrit);
-      f.classList.toggle("alarma", gas > cfg.ualarm && gas < cfg.ucrit);
-      historial.push(gas);
-      histT.push(isNaN(temp) ? null : temp); histH.push(isNaN(hum) ? null : hum);
-      if(historial.length > MAX_PUNTOS){ historial.shift(); histT.shift(); histH.shift(); }
-    }
-
-    // Nivel final: el mayor entre lo que reporta el ESP32 (V3) y lo que indica el gas con los umbrales A y B
-    const nivelGas = isNaN(gas) ? 0 : (gas >= cfg.ucrit ? 2 : gas > cfg.ualarm ? 1 : 0);
-    const nivelFinal = Math.max(isNaN(nivel) ? 0 : nivel, nivelGas);
-    ultimo = { temp: isNaN(temp) ? null : temp, hum: isNaN(hum) ? null : hum, gas: isNaN(gas) ? null : gas, nivel: nivelFinal };
-
-    const conectado = (hw === true || hw === "true");
-    if(conectado && !isNaN(gas)) guardarLocal(temp, hum, gas, nivelFinal);
-
-    if(!conectado){
-      banner("boff", "ESP32 desconectado", "El dispositivo no está enviando datos a Blynk");
-      setEstado(false, "Blynk responde, pero el ESP32 está sin conexión");
-    } else if(nivelFinal === 2){
-      banner("b2", "🚨 NIVEL CRÍTICO", "Gas muy alto: ventila y aléjate de la fuente");
-      setEstado(true, "Conectado · actualizado " + new Date().toLocaleTimeString());
-    } else if(nivelFinal === 1){
-      banner("b1", "⚠ ALARMA", "Gas o temperatura sobre el umbral");
-      setEstado(true, "Conectado · actualizado " + new Date().toLocaleTimeString());
-    } else {
-      banner("b0", "✅ Todo normal", "Sin alarmas");
-      setEstado(true, "Conectado · actualizado " + new Date().toLocaleTimeString());
-    }
-    mostrarOrigen(conectado, nivelFinal, temp, hum, gas);
-    $("err").textContent = "";
-  }catch(e){
-    mostrarOrigen(false, 0, NaN, NaN, NaN);
-    setEstado(false, "Error de conexión: " + e.message);
-    banner("boff", "Sin datos", "Revisa el token, el servidor o tu internet");
+const VOZ = {gas:'Atención. Alerta de gas. Abra puertas y ventanas y no encienda flama.', calor:'Atención. Temperatura alta cerca del sensor.',
+  peligro:'Peligro. Nivel de gas crítico. Salga del lugar y llame al nueve once desde afuera.', off:'El equipo perdió la señal.', ok:'Todo normal.'};
+function avisar(k, forzar) {
+  if (k === st.prevKey && !forzar) return;
+  const antes = st.prevKey; st.prevKey = k;
+  if (!antes && !forzar) return;
+  if (VOZ[k] && !(k === 'ok' && (antes === 'warm' || forzar))) hablar(VOZ[k]);
+  clearInterval(beepT);
+  if (alertas && (k === 'gas' || k === 'peligro' || k === 'calor')) {
+    const f = k === 'peligro' ? 1200 : 880, cada = k === 'peligro' ? 600 : 1500;
+    beepT = setInterval(() => { beep(f, .25); try { navigator.vibrate && navigator.vibrate(300); } catch (e) {} }, cada);
   }
 }
+$('#btnAlert').onclick = () => {
+  alertas = !alertas;
+  if (alertas && !audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  $('#btnAlert').textContent = alertas ? 'Sonido y voz activados' : 'Activar sonido y voz';
+  $('#btnAlert').classList.toggle('pri', !alertas);
+  if (alertas) { hablar('Alertas de voz activadas.'); avisar(st.prevKey, true); }
+  else clearInterval(beepT);
+};
+$('#btnTest').onclick = () => {
+  if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  [0, 350, 700].forEach(d => setTimeout(() => beep(1000, .2), d));
+  const a = alertas; alertas = true; hablar('Prueba de alarma. El sistema funciona.'); alertas = a;
+};
 
-// ---------- Análisis e historial ----------
-const RANGOS = { "1h":3600, "6h":21600, "24h":86400, "7d":604800, "30d":2592000 };
-let rango = "24h";
-try{ const g = localStorage.getItem("rango"); if(RANGOS[g]) rango = g; }catch(e){}
-let lecturas = [];      // [ts, temp, hum, gas, nivel], de la más antigua a la más reciente
-let pagTabla = 0;
-const POR_PAG = 5;
+// ---------- Demo: escenarios ----------
+$('#scen').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  st.scen = b.dataset.s; $('#scen').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+};
 
-const p2 = n => String(n).padStart(2, "0");
-function fechaCorta(ts){
-  const d = new Date(ts*1000);
-  return p2(d.getDate())+"/"+p2(d.getMonth()+1)+"/"+d.getFullYear()+" "+p2(d.getHours())+":"+p2(d.getMinutes())+":"+p2(d.getSeconds());
+// ---------- Worker ----------
+async function worker(body) {
+  const r = await fetch(cfg.worker, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.error) throw new Error(d.error || 'Error ' + r.status);
+  return d;
 }
-function etiquetaX(ts, span){
-  const d = new Date(ts*1000);
-  const hm = p2(d.getHours())+":"+p2(d.getMinutes());
-  return span > 30*3600 ? p2(d.getDate())+"/"+p2(d.getMonth()+1)+" "+hm : hm;
-}
-const nivelDe = p => Math.max(p[4] || 0, p[3] >= cfg.ucrit ? 2 : p[3] > cfg.ualarm ? 1 : 0);
 
-function serie(idx){
-  return lecturas.filter(p => typeof p[idx] === "number" && isFinite(p[idx])).map(p => ({ x:p[0], y:p[idx] }));
-}
-function resumen(s){
-  if(!s.length) return null;
-  let suma = 0, mn = Infinity, mx = -Infinity;
-  s.forEach(p => { suma += p.y; if(p.y < mn) mn = p.y; if(p.y > mx) mx = p.y; });
-  return { avg: suma/s.length, min: mn, max: mx };
-}
-// Reduce a ~max puntos agrupando (promedio, o máximo para no perder los picos de gas)
-function reducir(s, max, usarMax){
-  if(s.length <= max) return s;
-  const k = Math.ceil(s.length / max), out = [];
-  for(let i = 0; i < s.length; i += k){
-    const grupo = s.slice(i, i+k);
-    const x = grupo.reduce((a,p)=>a+p.x,0) / grupo.length;
-    const y = usarMax ? Math.max(...grupo.map(p=>p.y)) : grupo.reduce((a,p)=>a+p.y,0) / grupo.length;
-    out.push({ x, y });
+// ---------- Historial ----------
+let rango = 3600, puntos = [], cadaMin = 5;
+function sintetico(seg) {
+  const paso = Math.max(300, Math.round(seg / 240)), t1 = Math.floor(now()), out = [];
+  for (let t = t1 - seg; t <= t1; t += paso) {
+    const f = (t1 - t) / seg, hr = new Date(t * 1000).getHours();
+    let g = 600 + 120 * Math.sin(t / 5000) + Math.random() * 60;
+    if (hr === 14 || (f > 0.2 && f < 0.26)) g += 2100 * Math.random() + 900;    // un episodio simulado (cocina a mediodía)
+    const temp = 24 + 5 * Math.sin((hr - 9) / 24 * 2 * Math.PI) + Math.random(), hum = 62 - 10 * Math.sin((hr - 9) / 24 * 2 * Math.PI) + Math.random() * 3;
+    g = Math.min(4095, Math.round(g));
+    out.push([t, +temp.toFixed(1), +hum.toFixed(1), g, g >= cfg.uc ? 2 : g > cfg.ua ? 1 : 0]);
   }
   return out;
 }
-
-// Gráfica de líneas con ejes, cuadrícula y valor al pasar el cursor o el dedo
-function grafica(id, s, o, hover){
-  const c = $(id);
-  const dpr = window.devicePixelRatio || 1;
-  const w = c.clientWidth, h = c.clientHeight;
-  if(!w || !h) return;
-  c.width = w*dpr; c.height = h*dpr;
-  const g = c.getContext("2d");
-  g.setTransform(dpr,0,0,dpr,0,0);
-  g.clearRect(0,0,w,h);
-  c._args = { s, o };
-  g.font = "11px system-ui,sans-serif";
-
-  if(!s.length){
-    g.fillStyle = (esOscuro() ? "#94a3b8" : "#6b7280"); g.textAlign = "center";
-    g.fillText("Sin datos en este periodo", w/2, h/2);
-    c._geo = null;
-    return;
-  }
-
-  const L = 44, R = 12, T = 12, B = 28;
-  const pw = w-L-R, ph = h-T-B;
-  const ys = s.map(p=>p.y);
-  let lo = o.min, hi = o.max;
-  if(lo === undefined || hi === undefined){
-    lo = Math.min(...ys); hi = Math.max(...ys);
-    if(hi - lo < 1e-9){ lo -= 1; hi += 1; }
-    const pad = (hi-lo)*0.12; lo -= pad; hi += pad;
-  }
-  const t0 = s[0].x;
-  const t1 = s[s.length-1].x > t0 ? s[s.length-1].x : t0 + 1;
-  const X = t => s.length === 1 ? L + pw/2 : L + (t-t0)/(t1-t0)*pw;
-  const Y = v => T + (1 - (v-lo)/(hi-lo))*ph;
-
-  // Cuadrícula y etiquetas del eje Y
-  g.strokeStyle = (esOscuro() ? "#334155" : "#e5e7eb"); g.lineWidth = 1; g.fillStyle = (esOscuro() ? "#94a3b8" : "#6b7280"); g.textAlign = "right";
-  for(let i = 0; i <= 4; i++){
-    const v = lo + (hi-lo)*i/4, yy = Y(v);
-    g.beginPath(); g.moveTo(L, yy); g.lineTo(w-R, yy); g.stroke();
-    g.fillText(v.toFixed(o.dec), L-6, yy+4);
-  }
-  // Etiquetas del eje X
-  const span = t1 - t0;
-  for(let i = 0; i <= 4; i++){
-    const t = t0 + span*i/4;
-    g.textAlign = i === 0 ? "left" : i === 4 ? "right" : "center";
-    g.fillText(etiquetaX(t, span), X(t), h-8);
-  }
-
-  // Líneas de umbral
-  (o.lineas || []).forEach(l=>{
-    if(l.v < lo || l.v > hi) return;
-    g.setLineDash([5,4]); g.strokeStyle = l.color; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(L, Y(l.v)); g.lineTo(w-R, Y(l.v)); g.stroke();
-  });
-  g.setLineDash([]);
-
-  // Área bajo la línea
-  if(s.length > 1){
-    g.beginPath();
-    s.forEach((p,i)=>{ i ? g.lineTo(X(p.x),Y(p.y)) : g.moveTo(X(p.x),Y(p.y)); });
-    g.lineTo(X(s[s.length-1].x), T+ph); g.lineTo(X(s[0].x), T+ph); g.closePath();
-    g.fillStyle = o.relleno; g.fill();
-  }
-  // Línea
-  g.strokeStyle = o.color; g.lineWidth = 2; g.beginPath();
-  s.forEach((p,i)=>{ i ? g.lineTo(X(p.x),Y(p.y)) : g.moveTo(X(p.x),Y(p.y)); });
-  g.stroke();
-  // Puntos (solo si son pocos)
-  if(s.length <= 80){
-    g.fillStyle = o.color;
-    s.forEach(p=>{ g.beginPath(); g.arc(X(p.x), Y(p.y), 3, 0, 7); g.fill(); });
-  }
-
-  // Valor al pasar el cursor
-  c._geo = { X, s, L, R, w };
-  if(hover !== undefined && s[hover]){
-    const p = s[hover], px = X(p.x), py = Y(p.y);
-    g.fillStyle = (esOscuro() ? "#1e293b" : "#fff"); g.strokeStyle = o.color; g.lineWidth = 2;
-    g.beginPath(); g.arc(px, py, 5, 0, 7); g.fill(); g.stroke();
-    const txt = etiquetaX(p.x, 0) + " · " + p.y.toFixed(o.dec) + " " + o.unidad;
-    g.font = "12px system-ui,sans-serif";
-    const tw = g.measureText(txt).width + 16;
-    let bx = px - tw/2; bx = Math.max(4, Math.min(w - tw - 4, bx));
-    const by = py > T + 40 ? py - 34 : py + 12;
-    g.fillStyle = (esOscuro() ? "rgba(241,245,249,.96)" : "rgba(17,24,39,.92)");
-    g.beginPath(); g.roundRect ? g.roundRect(bx, by, tw, 24, 6) : g.rect(bx, by, tw, 24); g.fill();
-    g.fillStyle = (esOscuro() ? "#0f172a" : "#fff"); g.textAlign = "left"; g.fillText(txt, bx+8, by+16);
-  }
-}
-["gTemp","gHum","gGas"].forEach(id=>{
-  const c = $(id);
-  const mover = e=>{
-    if(!c._geo || !c._args) return;
-    const r = c.getBoundingClientRect();
-    const mx = e.clientX - r.left;
-    let mejor = 0, d = Infinity;
-    c._geo.s.forEach((p,i)=>{ const dd = Math.abs(c._geo.X(p.x) - mx); if(dd < d){ d = dd; mejor = i; } });
-    grafica(id, c._args.s, c._args.o, mejor);
-  };
-  c.addEventListener("pointermove", mover);
-  c.addEventListener("pointerdown", mover);
-  c.addEventListener("pointerleave", ()=>{ if(c._args) grafica(id, c._args.s, c._args.o); });
-});
-
-const fx = (v, d, u) => v === null || v === undefined || !isFinite(v) ? "--" : v.toFixed(d) + u;
-
-function pintarHistorial(){
-  // Estadísticas
-  const T = resumen(serie(1)), H = resumen(serie(2)), G = resumen(serie(3));
-  $("tAvg").textContent = T ? fx(T.avg,2," °C") : "--"; $("tMin").textContent = T ? fx(T.min,1," °C") : "--"; $("tMax").textContent = T ? fx(T.max,1," °C") : "--";
-  $("hAvg").textContent = H ? fx(H.avg,2," %") : "--";  $("hMin").textContent = H ? fx(H.min,1," %") : "--";  $("hMax").textContent = H ? fx(H.max,1," %") : "--";
-  $("gAvg").textContent = G ? fx(G.avg,1,"") : "--";    $("gMin").textContent = G ? fx(G.min,0,"") : "--";    $("gMax").textContent = G ? fx(G.max,0,"") : "--";
-  $("resumenPeriodo").textContent = lecturas.length
-    ? lecturas.length + " lecturas del " + fechaCorta(lecturas[0][0]) + " al " + fechaCorta(lecturas[lecturas.length-1][0])
-    : "Sin lecturas en este periodo";
-
-  dibujarGraficas();
-
-  // Tabla (la más reciente primero)
-  const orden = lecturas.slice().reverse();
-  const total = orden.length;
-  const maxPag = Math.max(0, Math.ceil(total/POR_PAG) - 1);
-  if(pagTabla > maxPag) pagTabla = maxPag;
-  const ini = pagTabla*POR_PAG, trozo = orden.slice(ini, ini+POR_PAG);
-  const nombres = ["Normal","Alarma","Crítico"];
-  $("tbody").innerHTML = trozo.length ? trozo.map(p=>{
-    const n = nivelDe(p);
-    return "<tr><td>"+fechaCorta(p[0])+"</td><td>"+fx(p[1],1," °C")+"</td><td>"+fx(p[2],1," %")+"</td><td>"+p[3]+
-           "</td><td><span class='est e"+n+"'>"+nombres[n]+"</span></td></tr>";
-  }).join("") : "<tr><td colspan='5' style='color:#6b7280'>Todavía no hay lecturas en este periodo.</td></tr>";
-  $("pagInfo").textContent = total ? "Mostrando " + (ini+1) + "–" + (ini+trozo.length) + " de " + total : "";
-  $("pagAnt").disabled = pagTabla <= 0;
-  $("pagSig").disabled = pagTabla >= maxPag;
-}
-
-function dibujarGraficas(){
-  grafica("gTemp", reducir(serie(1), 120, false), { color:"#2563eb", relleno:"rgba(37,99,235,.10)", dec:1, unidad:"°C" });
-  grafica("gHum",  reducir(serie(2), 120, false), { color:"#16a34a", relleno:"rgba(22,163,74,.10)", dec:0, unidad:"%", min:0, max:100 });
-  grafica("gGas",  reducir(serie(3), 120, true),  { color:"#ea580c", relleno:"rgba(234,88,12,.10)", dec:0, unidad:"", min:0, max:4095,
-    lineas:[{ v:cfg.ualarm, color:"#d97706" }, { v:cfg.ucrit, color:"#dc2626" }] });
-}
-
-async function cargarHistorial(){
-  const seg = RANGOS[rango];
-  let pts = [], fuente = "";
-  try{
-    const r = await fetch(URL_IA, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accion: "historial", rango: seg })
-    });
-    const d = await r.json();
-    if(r.ok && Array.isArray(d.puntos)) pts = d.puntos;
-  }catch(e){}
-
-  if(pts.length >= 2){
-    fuente = "Datos del servidor, una lectura cada 5 minutos. Los valores altos se agregan siempre.";
-    // El servidor guarda cada 5 min; aquí se agregan las lecturas altas de este dispositivo para que no se pierda ninguna
-    const desdeS = Math.floor(Date.now()/1000) - seg;
-    const yaEsta = new Set(pts.map(p => p[0]));
-    histLocal.forEach(p => {
-      if(p[0] >= desdeS && (p[4] > 0 || p[3] > cfg.ualarm) && !yaEsta.has(p[0])) pts.push(p);
-    });
-  } else {
-    const desde = Math.floor(Date.now()/1000) - seg;
-    pts = histLocal.filter(p => p[0] >= desde);
-    fuente = "Datos guardados en este dispositivo (se llenan mientras la página está abierta).";
-  }
-  lecturas = pts.filter(p => Array.isArray(p) && p.length >= 4).sort((a,b)=>a[0]-b[0]);
-  $("fuente").textContent = fuente;
-  pintarHistorial();
-}
-
-function marcarRango(){
-  document.querySelectorAll(".rg").forEach(b => b.classList.toggle("act", b.dataset.r === rango));
-}
-document.querySelectorAll(".rg").forEach(b=>{
-  b.addEventListener("click", ()=>{
-    rango = b.dataset.r; pagTabla = 0;
-    try{ localStorage.setItem("rango", rango); }catch(e){}
-    marcarRango();
-    cargarHistorial();
-  });
-});
-$("pagAnt").addEventListener("click", ()=>{ pagTabla = Math.max(0, pagTabla-1); pintarHistorial(); });
-$("pagSig").addEventListener("click", ()=>{ pagTabla++; pintarHistorial(); });
-
-function iniciar(){
-  clearInterval(timer);
-  historial = []; histT = []; histH = [];
-  if(!cfg.token){ setEstado(false, "Esperando configuración…"); return; }
-  setEstado(false, "Conectando…");
-  actualizar();
-  timer = setInterval(actualizar, CADA_MS);
-}
-
-$("save").addEventListener("click", ()=>{
-  const token = $("token").value.trim();
-  if(!token){ $("err").textContent = "Pega tu token de Blynk."; return; }
-  cfg = {
-    token,
-    server: $("server").value.trim() || "blynk.cloud",
-    ualarm: parseInt($("ualarm").value) || 2400,
-    ucrit:  parseInt($("ucrit").value)  || 3600
-  };
-  try{ localStorage.setItem("monitorCfg", JSON.stringify(cfg)); }catch(e){}
-  aplicarCfgEnPantalla();
-  $("cfg").open = false;
-  iniciar();
-  pintarHistorial();
-});
-
-// Genera el QR con el enlace de esta página + el token
-$("btnQR").addEventListener("click", ()=>{
-  const box = $("qrbox"), msg = $("qrmsg");
-  box.innerHTML = ""; msg.textContent = "";
-
-  if(!cfg.token){ msg.textContent = "Primero configura tu token y conecta."; return; }
-  if(location.protocol === "file:"){
-    msg.textContent = "Esta página está abierta como archivo local. Publícala (GitHub Pages, por ejemplo), ábrela desde su enlace y vuelve a presionar el botón.";
-    return;
-  }
-  if(typeof QRCode === "undefined"){
-    msg.textContent = "No se pudo cargar el generador de QR. Revisa tu internet.";
-    return;
-  }
-
-  let url = location.origin + location.pathname + "#token=" + encodeURIComponent(cfg.token);
-  if(cfg.server !== "blynk.cloud") url += "&server=" + encodeURIComponent(cfg.server);
-
-  // Se dibuja en 1000x1000 (alta resolución) y se muestra a 220 px en pantalla
-  new QRCode(box, { text:url, width:1000, height:1000, correctLevel:QRCode.CorrectLevel.M });
-  box.querySelectorAll("canvas,img").forEach(e=>{ e.style.width = "220px"; e.style.height = "220px"; });
-  msg.textContent = "Escanéalo con la cámara del celular. ";
-
-  // Botón para descargar el QR en alta resolución (para imprimir)
-  const cv = box.querySelector("canvas");
-  if(cv){
-    const a = document.createElement("a");
-    a.textContent = "Descargar QR para imprimir";
-    a.href = cv.toDataURL("image/png");
-    a.download = "qr-sensor.png";
-    msg.appendChild(a);
-  }
-});
-
-// Historial visible del chat (se guarda en este navegador para poder releer respuestas)
-let chat = [];
-try{ chat = JSON.parse(localStorage.getItem("iaChat") || "[]"); if(!Array.isArray(chat)) chat = []; }catch(e){ chat = []; }
-// Memoria de la conversación: el asistente recibe las últimas preguntas y respuestas guardadas (también después de recargar)
-let conv = chat.map(m => ({ rol: m.rol === "user" ? "user" : "assistant", texto: m.texto })).slice(-12);
-function guardarChat(){
-  if(chat.length > 100) chat.splice(0, chat.length - 100);
-  try{ localStorage.setItem("iaChat", JSON.stringify(chat)); }catch(e){}
-}
-function bajarChat(){ const m = $("iaMsgs"); m.scrollTop = m.scrollHeight; }
-function burbuja(rol, texto){
-  const lista = $("iaLista");
-  const bien = lista.querySelector(".iabienvenida"); if(bien) bien.remove();
-  const d = document.createElement("div");
-  d.className = "msg " + rol;
-  d.textContent = texto;
-  lista.appendChild(d);
-  bajarChat();
-  return d;
-}
-function pintarChat(){
-  const lista = $("iaLista");
-  lista.innerHTML = "";
-  if(!chat.length){
-    lista.innerHTML = '<div class="iabienvenida"><b>¿En qué te ayudo?</b>Pregunta sobre temperatura, humedad o gas.<br>Todas las respuestas se quedan aquí para que las puedas releer.</div>';
-    return;
-  }
-  chat.forEach(m => burbuja(m.rol === "user" ? "user" : "bot", m.texto));
-}
-
-// Abrir y cerrar el asistente
-function abrirAsistente(){
-  $("iaPanel").classList.add("abierto");
-  document.body.style.overflow = "hidden";
-  pintarChat();
-  bajarChat();
-}
-function cerrarAsistente(){
-  $("iaPanel").classList.remove("abierto");
-  document.body.style.overflow = "";
-  try{ speechSynthesis.cancel(); }catch(e){}
-}
-$("abrirIA").addEventListener("click", abrirAsistente);
-$("iaCerrar").addEventListener("click", cerrarAsistente);
-document.addEventListener("keydown", e=>{ if(e.key === "Escape" && $("iaPanel").classList.contains("abierto")) cerrarAsistente(); });
-$("iaBorrar").addEventListener("click", ()=>{
-  if(!chat.length || confirm("¿Borrar toda la conversación?")){
-    chat = []; conv = []; guardarChat();
-    pintarChat();
-  }
-});
-
-// Resumen del historial guardado en este dispositivo (gratis: no usa servidor ni KV). Lo recibe el Worker junto con la pregunta.
-function resumenLocal(){
-  if(histLocal.length < 3) return [];
-  const ahora = Math.floor(Date.now()/1000);
-  const dur = s => s < 60 ? Math.round(s) + " segundos" : s < 3600 ? Math.round(s/60) + " min" : Math.floor(s/3600) + " h " + Math.round((s%3600)/60) + " min";
-  const hm = ts => { const d = new Date(ts*1000); return p2(d.getHours()) + ":" + p2(d.getMinutes()) + " del " + p2(d.getDate()) + "/" + p2(d.getMonth()+1); };
-  const lineas = ["Registro guardado en el dispositivo, con datos desde hace " + dur(ahora - histLocal[0][0]) + " (solo se guarda mientras la página está abierta, así que puede tener huecos)."];
-  [[3600,"Última hora"],[21600,"Últimas 6 h"],[86400,"Últimas 24 h"]].forEach(([seg, nombre])=>{
-    const arr = histLocal.filter(p => p[0] >= ahora - seg);
-    if(!arr.length){ lineas.push(nombre + ": sin lecturas registradas."); return; }
-    const st = i => {
-      const v = arr.map(p => p[i]).filter(x => typeof x === "number" && isFinite(x));
-      return v.length ? { min:Math.min(...v), max:Math.max(...v), avg:v.reduce((a,b)=>a+b,0)/v.length } : null;
-    };
-    const g = st(3), t = st(1), h = st(2);
-    const pico = arr.find(p => p[3] === g.max);
-    // Tendencia del gas: promedio del primer cuarto contra el del último cuarto
-    const k = Math.max(1, Math.floor(arr.length/4));
-    const pr = a => a.reduce((s,p)=>s+p[3],0) / a.length;
-    const dl = pr(arr.slice(-k)) - pr(arr.slice(0,k));
-    const tend = arr.length < 4 ? "sin tendencia clara" : dl > 200 ? "subiendo" : dl < -200 ? "bajando" : "estable";
-    let alarmaS = 0, critS = 0;
-    arr.forEach((p,i)=>{
-      const sig = arr[i+1] ? arr[i+1][0] : p[0] + 3;
-      const d = Math.min(sig - p[0], 60);
-      const n = nivelDe(p);
-      if(n >= 1) alarmaS += d;
-      if(n === 2) critS += d;
-    });
-    let l = nombre + ": " + arr.length + " lecturas; ";
-    if(t) l += "temperatura promedio " + t.avg.toFixed(1) + " °C (mín " + t.min.toFixed(1) + ", máx " + t.max.toFixed(1) + "); ";
-    if(h) l += "humedad promedio " + Math.round(h.avg) + " % (mín " + Math.round(h.min) + ", máx " + Math.round(h.max) + "); ";
-    l += "gas promedio " + Math.round(g.avg) + " (mín " + g.min + ", máx " + g.max + "), pico a las " + hm(pico[0]) + ", tendencia " + tend + "; ";
-    l += alarmaS ? "en alarma unos " + dur(alarmaS) + (critS ? " (" + dur(critS) + " en crítico)" : "") : "sin alarmas";
-    lineas.push(l + ".");
-  });
-  return lineas;
-}
-
-// Asistente: manda las lecturas y la pregunta al Worker, que consulta a la IA
-async function preguntarIA(texto){
-  const out = $("iaOut");
-  if(!URL_IA){ out.textContent = "El asistente todavía no está configurado."; return; }
-  if(iaOcupada) return;
-  texto = (texto || "").trim();
-  if(!texto){ out.textContent = "Escribe una pregunta."; return; }
-  if(ultimo.gas === null){ out.textContent = "Todavía no hay lecturas. Espera a que se conecte."; return; }
-
-  iaOcupada = true;
-  $("iaBtn").disabled = true;
-  // Desbloquea la voz en iPhone: debe ocurrir dentro del toque de la persona, antes de esperar la respuesta
-  try{ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance("")); }catch(e){}
-  out.textContent = "";
-  burbuja("user", texto);
-  $("iaq").value = "";
-  const resp = burbuja("bot", "Pensando…");
-  resp.classList.add("pensando");
-  try{
-    const r = await fetch(URL_IA, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pregunta: texto,
-        temp: ultimo.temp, hum: ultimo.hum, gas: ultimo.gas, nivel: ultimo.nivel,
-        ualarm: cfg.ualarm, ucrit: cfg.ucrit,
-        historial: historial.slice(-60),
-        histTemp: histT.slice(-60), histHum: histH.slice(-60),
-        conversacion: conv.slice(-8),
-        resumenLocal: resumenLocal()
-      })
-    });
-    const d = await r.json();
-    resp.classList.remove("pensando");
-    if(r.ok){
-      resp.textContent = d.respuesta;
-      chat.push({ rol: "user", texto: texto }, { rol: "bot", texto: d.respuesta });
-      guardarChat();
-      conv.push({ rol: "user", texto: texto }, { rol: "assistant", texto: d.respuesta });
-      if(conv.length > 12) conv.splice(0, conv.length - 12);
-      hablar(d.respuesta);
+async function cargarHist() {
+  $('#hAviso').textContent = 'Cargando…';
+  try {
+    if (cfg.demo || !cfg.worker) {
+      puntos = sintetico(rango); cadaMin = Math.max(5, Math.round(rango / 240 / 60));
+      $('#hAviso').textContent = cfg.demo ? 'Datos simulados (modo demostración).' : 'Configura la dirección del Worker en Ajustes para ver el historial real.';
+      if (!cfg.demo) puntos = [];
     } else {
-      resp.textContent = d.error || "No se pudo obtener respuesta.";
-      resp.classList.add("error");
+      const d = await worker({accion:'historial', rango});
+      puntos = d.puntos || []; cadaMin = d.cada_min || 5;
+      $('#hAviso').textContent = d.aviso === 'sin_kv' ? 'El Worker no tiene almacenamiento (KV) conectado.' : `Una lectura cada ${cadaMin} min.`;
     }
-  }catch(e){
-    resp.classList.remove("pensando");
-    resp.textContent = "No se pudo conectar con el asistente.";
-    resp.classList.add("error");
-  }
-  bajarChat();
-  setTimeout(()=>{ iaOcupada = false; $("iaBtn").disabled = false; }, 4000);
+  } catch (e) { puntos = []; $('#hAviso').textContent = 'No se pudo cargar el historial: ' + e.message; }
+  pintarHist();
 }
-
-// Voz: lectura de las respuestas en voz alta (speechSynthesis del navegador)
-
-try{ speechSynthesis.getVoices(); }catch(e){}   // precarga las voces
-
-// Volumen de la voz (0 a 100), se recuerda en este navegador
-function volumen(){
-  return Math.min(100, Math.max(0, parseInt($("iaVol").value) || 0)) / 100;
+function pintarHist() {
+  const P = puntos;
+  if (!P.length) { $('#sum').innerHTML = '<div><span>Sin lecturas en este periodo</span><b>--</b></div>'; $('#ev').innerHTML = '<li>Sin datos.</li>'; dibujarCharts(); return; }
+  const gs = P.map(p => p[3]), mx = Math.max(...gs), pico = P.find(p => p[3] === mx);
+  const ts = P.map(p => p[1]).filter(Number.isFinite), hs = P.map(p => p[2]).filter(Number.isFinite);
+  const avg = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : NaN;
+  const enAlarma = P.filter(p => p[4] >= 1).length * cadaMin;
+  $('#sum').innerHTML = [
+    ['Peor momento', mx >= cfg.uc ? 'Peligro' : mx > cfg.ua ? 'Alerta' : 'Normal', mx > cfg.ua ? `a las ${hora(pico[0])}` : 'sin alarmas'], ['Tiempo en alarma', enAlarma ? `${enAlarma} min` : 'Nada', ''],
+    ['Temperatura promedio', ts.length ? avg(ts).toFixed(1) + ' °C' : '--', ts.length ? `máx ${Math.max(...ts)} °C` : ''],
+    ['Humedad promedio', hs.length ? Math.round(avg(hs)) + ' %' : '--', '']
+  ].map(([a, b, c]) => `<div><span>${a}</span><b>${b}</b><span>${c}</span></div>`).join('');
+  // Episodios de alarma
+  const eps = []; let cur = null;
+  P.forEach(p => { if (p[4] >= 1) { if (!cur) cur = {ini:p[0], fin:p[0], max:p[3], crit:p[4] === 2}; else { cur.fin = p[0]; cur.max = Math.max(cur.max, p[3]); cur.crit ||= p[4] === 2; } } else if (cur) { eps.push(cur); cur = null; } });
+  if (cur) eps.push(cur);
+  $('#ev').innerHTML = eps.length ? eps.reverse().slice(0, 20).map(e => `<li><span class="t">${fecha(e.ini)}</span><span>${e.crit ? '<b style="color:var(--bad)">Peligro</b>' : '<b>Alerta</b>'} · duró unos ${Math.round((e.fin - e.ini) / 60) + cadaMin} min</span></li>`).join('') : '<li>No hubo alarmas en este periodo.</li>';
+  dibujarCharts();
 }
-try{ const g = localStorage.getItem("iaVol"); if(g !== null) $("iaVol").value = g; }catch(e){}
-$("iaVolTxt").textContent = $("iaVol").value;
-$("iaVol").addEventListener("input", ()=>{
-  $("iaVolTxt").textContent = $("iaVol").value;
-  try{ localStorage.setItem("iaVol", $("iaVol").value); }catch(e){}
-});
-
-// Elige una voz femenina en español (según el nombre, porque el navegador no indica el género)
-const NOM_MUJER = /sabina|paulina|helena|laura|m[oó]nica|luc[ií]a|elvira|dalia|camila|marisol|salom[eé]|elena|carmen|female|femenin|mujer|google espa|siri|angelica|ang[eé]lica|marta|paloma|esperanza|catalina|valentina|isabella|ximena|tessa|abril|nuria|lorena|fernanda|karina|lourdes|margarita|ramona|sof[ií]a|yolanda|maribel|larissa|estrella|belkys|triana|ines|in[eé]s/i;
-const NOM_HOMBRE = /ra[uú]l|pablo|jorge|diego|juan|carlos|enrique|andr[eé]s|alvaro|álvaro|male|masculin|hombre|jaime|pedro|miguel|lorenzo|tom[aá]s|rodrigo|alberto|luis|jos[eé]|n[eé]stor|oscar|gonzalo|manuel|emilio|ricardo|ernesto|sergio|alejandro|arnau|c[eé]sar|leandro|santiago|facundo|mateo/i;
-function vozMujer(){
-  let voces = [];
-  try{ voces = speechSynthesis.getVoices() || []; }catch(e){}
-  const es = voces.filter(x => x.lang && x.lang.toLowerCase().replace("_","-").startsWith("es"));
-  const mujeres = es.filter(x => NOM_MUJER.test(x.name) && !NOM_HOMBRE.test(x.name));
-  const pref = l => mujeres.find(x => x.lang.replace("_","-").toLowerCase() === l);
-  const v = pref("es-mx") || pref("es-us") || mujeres[0] ||
-            es.find(x => !NOM_HOMBRE.test(x.name));   // al menos una que no sea de hombre
-  if(v) v.__mujer = mujeres.includes(v);
-  return v || null;
+function chart(svg, series, yMax, lines, zonas) {
+  const W = svg.clientWidth, H = svg.clientHeight; if (!W) return;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const P = puntos, L = zonas ? 8 : 34, R = 8, T = 8, B = 24;
+  if (!P.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="var(--mut)" font-size="14">Sin datos</text>`; return; }
+  const t0 = P[0][0], t1 = P[P.length - 1][0] || t0 + 1, x = t => L + (t - t0) / Math.max(1, t1 - t0) * (W - L - R), y = v => T + (1 - v / yMax) * (H - T - B);
+  let s = '';
+  if (zonas) zonas.forEach(([a, b, c, n]) => { s += `<rect x="${L}" width="${W - L - R}" y="${y(b)}" height="${y(a) - y(b)}" fill="${c}" opacity=".08"/><text x="${W - R - 6}" y="${y(b) + 15}" text-anchor="end" font-size="12" fill="${c}">${n}</text>`; });
+  else [0, .5, 1].forEach(f => { const v = Math.round(yMax * f); s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="12" fill="var(--mut)">${v}</text>`; });
+  (lines || []).forEach(([v, c]) => s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${c}" stroke-width="2" stroke-dasharray="6 4"/>`);
+  const nt = W < 520 ? 3 : 5;
+  for (let i = 0; i < nt; i++) { const t = t0 + (t1 - t0) * i / (nt - 1); s += `<text x="${x(t)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === nt - 1 ? 'end' : 'middle'}" font-size="12" fill="var(--mut)">${rango > 86400 ? new Date(t * 1000).toLocaleDateString('es-MX', {day:'2-digit', month:'short'}) : hora(t)}</text>`; }
+  series.forEach(([i, c]) => {
+    const pts = P.filter(p => Number.isFinite(p[i])).map(p => `${x(p[0]).toFixed(1)},${y(Math.min(yMax, p[i])).toFixed(1)}`).join(' ');
+    s += `<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  });
+  svg.innerHTML = s;
 }
-try{ speechSynthesis.onvoiceschanged = () => { vozMujer(); }; }catch(e){}
-
-function hablar(texto){
-  if(!("speechSynthesis" in window) || !texto) return;
-  try{
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(texto);
-    u.lang = "es-MX";
-    const v = vozMujer();
-    if(v){ u.voice = v; u.lang = v.lang; }
-    // Si no hay ninguna voz femenina en el dispositivo, sube el tono para que no suene grave
-    u.pitch = (v && v.__mujer) ? 1 : 1.35;
-    u.rate = 1;
-    u.volume = volumen();
-    speechSynthesis.speak(u);
-  }catch(e){}
+function dibujarCharts() {
+  chart($('#chGas'), [[3, 'var(--acc)']], 4095, [], [[0, cfg.ua, '#34d399', 'Aire limpio'], [cfg.ua, cfg.uc, '#fbbf24', 'Alerta'], [cfg.uc, 4095, '#fb7185', 'Peligro']]);
+  chart($('#chTH'), [[1, '#fb923c'], [2, 'var(--info)']], 100, [[cfg.ut, 'rgba(251,146,60,.45)']]);
 }
+const roCh = new ResizeObserver(dibujarCharts); roCh.observe($('#chGas')); roCh.observe($('#chTH'));
+$('#rangos').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  rango = +b.dataset.r; $('#rangos').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); cargarHist();
+};
 
-$("iaBtn").addEventListener("click", ()=> preguntarIA($("iaq").value));
-$("iaq").addEventListener("keydown", e=>{ if(e.key === "Enter") preguntarIA($("iaq").value); });
-document.querySelectorAll(".chip").forEach(b=>{
-  b.addEventListener("click", ()=>{ $("iaq").value = b.dataset.q; preguntarIA(b.dataset.q); });
-});
-
-window.addEventListener("resize", ()=>{ dibujarGraficas(); });
-leerEnlace();
-document.body.classList.toggle("vista", !!cfg.vista);
-aplicarCfgEnPantalla();
-if(!cfg.token) $("cfg").open = true;
-marcarRango();
-$("tema").addEventListener("click", cambiarTema);
-marcarTema();
-iniciar();
-cargarHistorial();
-setInterval(cargarHistorial, 60000);
-
-// Botón "Descargar app": instala la página como app; si subes el archivo sensor-riesgo.apk, ofrece descargarlo
-const APK = "sensor-riesgo.apk";
-let instalador = null, hayApk = false;
-const yaInstalada = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone;
-if(yaInstalada) $("appBox").style.display = "none";
-window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); instalador = e; });
-window.addEventListener("appinstalled", ()=>{ $("appMsg").textContent = "App instalada. Búscala en tu pantalla de inicio."; $("btnApp").style.display = "none"; });
-if(location.protocol.indexOf("http") === 0){
-  fetch(APK, { method:"HEAD", cache:"no-store" }).then(r=>{ hayApk = r.ok && !/text\/html/.test(r.headers.get("content-type") || ""); }).catch(()=>{});
+// ---------- Asistente ----------
+const conv = [];
+function msg(rol, texto) {
+  conv.push({rol, texto});
+  const d = document.createElement('div'); d.className = 'msg' + (rol === 'user' ? ' me' : ''); d.textContent = texto;
+  $('#chat').appendChild(d); d.scrollIntoView({block:'end', behavior:'smooth'}); return d;
 }
-$("btnApp").addEventListener("click", async ()=>{
-  const m = $("appMsg");
-  if(instalador){
-    instalador.prompt();
-    try{ await instalador.userChoice; }catch(e){}
-    instalador = null;
-    return;
-  }
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  if(hayApk && !ios){
-    m.textContent = "Descargando… Al abrir el archivo, Android puede pedir permiso para instalar apps de esta fuente.";
-    const a = document.createElement("a"); a.href = APK; a.download = "sensor-riesgo.apk"; document.body.appendChild(a); a.click(); a.remove();
-    return;
-  }
-  if(ios) m.textContent = "En iPhone: toca el botón Compartir (el cuadro con la flecha) y elige «Agregar a pantalla de inicio».";
-  else if(location.protocol === "file:") m.textContent = "Abre la página desde su enlace publicado para poder instalarla.";
-  else m.textContent = "Abre el menú de tu navegador (⋮) y elige «Instalar app» o «Agregar a pantalla de inicio».";
-});
+function respuestaLocal(q) {
+  const k = nivel(), E = ESTADOS[k];
+  if (k === 'off') return 'Ahora no llegan datos del equipo, así que no puedo saber si hay peligro. ' + E.q[0];
+  const o = origen(), tr = tendencia().clase;
+  const trTxt = {sube_rapido:'está subiendo rápido', sube:'va subiendo', baja_rapido:'está bajando rápido', baja:'va bajando', estable:'está estable', insuf:'todavía no tiene tendencia clara'}[tr];
+  const ql = q.toLowerCase();
+  if (ql.includes('última hora') || ql.includes('pasó')) return 'El resumen de la última hora está en la pestaña Historial. ' + (cfg.demo ? 'En modo demostración el historial es simulado.' : 'Para que yo lo explique, conecta el Worker en Ajustes.');
+  if (ql.includes('gas podría') || ql.includes('qué gas') || ql.includes('origen')) return `Podría ser: ${o[0].toLowerCase()}. ${o[1]} Los sensores no identifican el tipo exacto de gas.`;
+  if (ql.includes('hago') || ql.includes('hacer')) return E.q.join(' ');
+  return `Estado: ${E.t.toLowerCase()}. El nivel de gas ${trTxt}. Posible origen: ${o[0].toLowerCase()}. ${E.q[0]}`;
+}
+async function preguntar(q) {
+  q = q.trim(); if (!q) return;
+  msg('user', q); const espera = msg('assistant', 'Pensando…'); conv.pop();
+  let r;
+  try {
+    if (cfg.demo || !cfg.worker || !st.online) r = respuestaLocal(q);
+    else {
+      const n = nivel(), niv = n === 'peligro' ? 2 : (n === 'gas' || n === 'calor') ? 1 : 0;
+      const d = await worker({pregunta:q, gas:st.gas, temp:st.temp, hum:st.hum, ualarm:cfg.ua, ucrit:cfg.uc, nivel:niv,
+        historial:st.buf.map(p => p.g).slice(-90), resumenLocal:[], conversacion:conv.slice(-7, -1)});
+      r = d.respuesta;
+    }
+  } catch (e) { r = respuestaLocal(q) + '\n\n(El asistente en línea no respondió; esta respuesta se calculó en el equipo.)'; }
+  espera.textContent = r; conv.push({rol:'assistant', texto:r});
+}
+$('#chips').onclick = e => { const b = e.target.closest('button'); if (b) preguntar(b.textContent); };
+$('#askF').onsubmit = e => { e.preventDefault(); const q = $('#askI').value; $('#askI').value = ''; preguntar(q); };
+msg('assistant', 'Hola. Puedo explicarte qué está pasando con las lecturas y qué hacer. ¿Qué quieres saber?');
 
-// Permite instalar la página como app (y abrirla sin internet)
-if("serviceWorker" in navigator && location.protocol.indexOf("http") === 0){
-  navigator.serviceWorker.register("sw.js").catch(()=>{});
+// ---------- Nariz electrónica (identificación aprendida) ----------
+let nariz = {}; try { nariz = JSON.parse(localStorage.getItem('sri_nariz') || '{}'); } catch (e) {}
+const guardarN = () => { try { localStorage.setItem('sri_nariz', JSON.stringify(nariz)); } catch (e) {} };
+let claseSel = 'Aire limpio', grabando = null;
+const media = a => [0, 1, 2].map(i => a.reduce((s, v) => s + v[i], 0) / a.length);
+const rasgo = (v, b) => v.map((x, i) => Math.log(Math.max(1, x) / Math.max(1, b[i])));
+function identificar() {
+  if (st.gas === null || st.mq5 === null || st.mq135 === null || !(nariz['Aire limpio'] || []).length) return null;
+  const otros = Object.keys(nariz).filter(n => n !== 'Aire limpio' && nariz[n].length);
+  if (!otros.length) return null;
+  const base = media(nariz['Aire limpio']), f = rasgo([st.gas, st.mq5, st.mq135], base), mag = Math.hypot(...f);
+  if (Math.max(...f) < Math.log(1.35)) return {n:'Aire limpio', c:'muy probable'};
+  let mejor = null, sim = -2;
+  otros.forEach(n => { const c = rasgo(media(nariz[n]), base), cm = Math.hypot(...c); if (!cm || !mag) return;
+    const cos = f.reduce((s, x, i) => s + x * c[i], 0) / (mag * cm); if (cos > sim) { sim = cos; mejor = n; } });
+  if (!mejor) return null;
+  return {n:mejor, c: sim > 0.97 ? 'muy probable' : sim > 0.9 ? 'probable' : 'no estoy seguro'};
+}
+function pintarN() {
+  const ks = Object.keys(nariz).filter(n => nariz[n].length);
+  $('#nLista').innerHTML = ks.length ? ks.map(n => `<li style="flex-direction:row;justify-content:space-between"><b>${esc(n)}</b><span style="color:var(--mut)">${nariz[n].length} muestras</span></li>`).join('') : '<li>Todavía no ha aprendido ningún gas.</li>';
+}
+$('#clases').onclick = e => { const b = e.target.closest('button'); if (!b || grabando) return; claseSel = b.textContent;
+  $('#clases').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); };
+$('#btnGrabar').onclick = () => {
+  if (grabando) return;
+  if (!st.online || st.mq5 === null) { $('#nMsg').textContent = 'El equipo debe estar conectado y con los sensores MQ-5 y MQ-135.'; return; }
+  if (claseSel !== 'Aire limpio' && !(nariz['Aire limpio'] || []).length) { $('#nMsg').textContent = 'Primero enséñale el aire limpio.'; return; }
+  grabando = {clase:claseSel, hasta:now() + 15, muestras:[]};
+  const t = setInterval(() => {
+    const falta = Math.ceil(grabando.hasta - now());
+    if (falta > 0) { $('#nMsg').textContent = `Grabando "${claseSel}"… ${falta} s`; return; }
+    clearInterval(t);
+    const m = grabando.muestras; grabando = null;
+    if (m.length < 3) { $('#nMsg').textContent = 'Muy pocas lecturas. Intenta de nuevo.'; return; }
+    nariz[claseSel] = claseSel === 'Aire limpio' ? m : (nariz[claseSel] || []).concat(m).slice(-60);
+    guardarN(); pintarN(); $('#nMsg').textContent = `Listo: aprendió "${claseSel}".`;
+  }, 500);
+};
+$('#btnBorrarN').onclick = () => { nariz = {}; guardarN(); pintarN(); $('#nMsg').textContent = 'Se borró lo aprendido.'; };
+$('#demoPers').onclick = () => { st.demoPers = !st.demoPers; $('#demoPers').setAttribute('aria-pressed', st.demoPers); };
+pintarN();
+
+// ---------- Ajustes ----------
+function llenarCfg() { $('#cTok').value = cfg.token; $('#cSrv').value = cfg.srv; $('#cWk').value = cfg.worker; $('#cUa').value = cfg.ua; $('#cUc').value = cfg.uc; $('#cUt').value = cfg.ut; }
+$('#cfgF').onsubmit = e => {
+  e.preventDefault();
+  cfg.token = $('#cTok').value.trim(); cfg.srv = $('#cSrv').value.trim() || 'blynk.cloud'; cfg.worker = $('#cWk').value.trim();
+  cfg.ua = +$('#cUa').value || 2400; cfg.uc = +$('#cUc').value || 3600; cfg.ut = +$('#cUt').value || 35;
+  if (cfg.uc <= cfg.ua) { $('#cfgMsg').textContent = 'El umbral de peligro debe ser mayor que el de alerta.'; return; }
+  cfg.demo = !cfg.token; guardar(); meterInit(); arrancar();
+  $('#cfgMsg').textContent = cfg.demo ? 'Sin token: se usará el modo demostración.' : 'Guardado. Conectando con el equipo…';
+};
+$('#btnDemo').onclick = () => { cfg.demo = true; guardar(); arrancar(); $('#cfgMsg').textContent = 'Modo demostración activado.'; location.hash = '#ahora'; };
+
+$('#btnQR').onclick = () => {
+  const box = $('#qrBox'), m = $('#qrMsg');
+  if (!cfg.token) { m.textContent = 'Primero guarda el token de Blynk.'; return; }
+  if (typeof QRCode === 'undefined') { m.textContent = 'No se pudo cargar el generador de QR. Revisa tu internet.'; return; }
+  box.innerHTML = ''; box.hidden = false;
+  new QRCode(box, {text: location.origin + location.pathname + '#token=' + encodeURIComponent(cfg.token), width: 240, height: 240});
+  m.textContent = 'Escanéalo con la cámara del otro celular.';
+};
+
+// ---------- Navegación ----------
+function ruta() {
+  const v = (location.hash || '#ahora').slice(1), ok = ['ahora', 'historial', 'asistente', 'ajustes'].includes(v) ? v : 'ahora';
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('act', s.id === 'v-' + ok));
+  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('act', a.getAttribute('href') === '#' + ok));
+  if (ok === 'historial') cargarHist();
+  if (ok === 'ahora') dibujarSpark();
+  scrollTo(0, 0);
+}
+addEventListener('hashchange', ruta);
+
+llenarCfg(); meterInit(); arrancar(); ruta();
 }
 </script>
 </body>
