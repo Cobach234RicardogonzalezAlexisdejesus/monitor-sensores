@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0c1217">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sensor Riesgo">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Sensor de Riesgo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=Archivo+Narrow:wght@600;700&display=swap">
@@ -133,6 +138,19 @@ nav a svg{width:27px;height:27px;stroke-width:2.3}
 nav a:hover{background:rgba(255,255,255,.06);color:#fff}
 nav a.act{color:#0c1217;background:var(--acc);box-shadow:0 0 0 1px rgba(45,212,191,.6),0 6px 18px rgba(45,212,191,.35)}
 @media(min-width:900px){.ahora-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}.ahora-grid .grid{margin-top:0}}
+
+/* Instalar app */
+.inst{display:flex;align-items:center;gap:12px;margin:12px max(4vw,14px) 0;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,rgba(45,212,191,.18),rgba(45,212,191,.06));border:1px solid rgba(45,212,191,.35)}
+.inst[hidden]{display:none}
+.inst img{width:44px;height:44px;border-radius:11px;flex:none}
+.inst div{flex:1;min-width:0;font-size:14px;line-height:1.3}.inst b{display:block;font-size:15.5px}
+.inst .ib{flex:none;border:0;border-radius:99px;padding:10px 16px;background:var(--acc);color:#04201c;font:800 15px Archivo,sans-serif;cursor:pointer}
+.inst .ix{flex:none;border:0;background:none;color:var(--mut);font-size:22px;padding:4px 6px;cursor:pointer}
+.imod{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.imod[hidden]{display:none}
+.imod .ic{width:min(520px,100%);background:#121b22;border-radius:20px 20px 0 0;padding:20px 20px 28px;border-top:1px solid var(--line)}
+.imod h3{font-size:20px;margin-bottom:10px}.imod ol{padding-left:22px;display:grid;gap:10px;font-size:16px;line-height:1.4}
+.imod .ib{margin-top:18px;width:100%}
 </style>
 </head>
 <body>
@@ -140,6 +158,16 @@ nav a.act{color:#0c1217;background:var(--acc);box-shadow:0 0 0 1px rgba(45,212,1
   <h1>Sensor de Riesgo Inteligente<small>COBACH 234</small></h1>
   <span class="pill" id="pill"><span class="dot"></span><span id="pillTxt">Sin conexión</span></span>
 </header>
+<div class="inst" id="inst" hidden>
+  <img src="icon-192.png" alt="">
+  <div><b>Instala la app</b>Ábrela como aplicación y recibe las alertas más rápido.</div>
+  <button class="ib" id="instBtn">Instalar</button>
+  <button class="ix" id="instX" aria-label="Cerrar">×</button>
+</div>
+<div class="imod" id="imod" hidden><div class="ic">
+  <h3 id="imodT">Instalar la app</h3><ol id="imodL"></ol>
+  <button class="ib inst-ok" id="imodOk" style="border:0;border-radius:99px;padding:12px;background:var(--acc);color:#04201c;font:800 16px Archivo,sans-serif">Entendido</button>
+</div></div>
 
 <main class="wrap">
   <!-- AHORA -->
@@ -466,7 +494,10 @@ function pintarTiles(on, k) {
   const warm = k === 'warm';
   if (on && !warm) {   // aire limpio de referencia para MQ-5 y MQ-135 (igual que el equipo)
     if (st.mq5 !== null && base.m5 === null) { base.m5 = st.mq5; base.m135 = st.mq135; }
-    else if (k === 'ok' && st.mq5 !== null) { base.m5 = base.m5 * .995 + st.mq5 * .005; base.m135 = base.m135 * .995 + st.mq135 * .005; }
+    else if (st.mq5 !== null) {
+      const aj = (b, v) => v < b ? b * .8 + v * .2 : (k === 'ok' ? b * .995 + v * .005 : b);   // baja rápido, sube lento
+      base.m5 = aj(base.m5, st.mq5); base.m135 = aj(base.m135, st.mq135);
+    }
   }
   const P = v => Math.max(0, Math.min(100, Math.round(v / 4095 * 100)));
   const EST = ['OK', 'ALERTA', 'PELIGRO'], S = ['ok', 'warn', 'bad'];
@@ -490,7 +521,7 @@ function pintarTiles(on, k) {
      bar: h === null ? 0 : Math.min(100, h), ta: 85, d:'<em style="--d:#fbbf24">Muy alta desde 85%</em>'},
     {n:'Personas', sub:'Presencia', a:'#2dd4bf', chip: !on || pv === null ? 'SIN DATO' : pv ? (k === 'peligro' ? 'EN RIESGO' : 'PRESENTES') : 'NADIE',
      v: !on || pv === null ? '--' : pv ? 'Sí' : 'No', s: !on || pv === null ? 'off' : pv ? (k === 'peligro' ? 'bad' : 'warn') : 'ok',
-     d: 'Detectadas en los últimos 5 min'}
+     d: 'Movimiento detectado al momento'}
   ];
   if (on && fv !== null) T.push({n:'Ventilador', sub:'Relevador', a:'#38bdf8', chip: fv ? 'VENTILANDO' : 'EN ESPERA', v: fv ? 'ON' : 'OFF', s: fv ? 'info' : 'ok', d:'Se enciende solo en alerta de gas'});
   $('#tiles').innerHTML = T.map(x => `<div class="tile" data-s="${x.s}" style="--a:${x.a}">
@@ -766,6 +797,33 @@ addEventListener('hashchange', ruta);
 
 llenarCfg(); meterInit(); arrancar(); ruta();
 }
+
+// ---------- Instalar como app ----------
+(() => {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  const ua = navigator.userAgent;
+  const instalada = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const enApp = /FBAN|FBAV|Instagram|Line\/|TikTok|musical_ly|WhatsApp/i.test(ua);
+  const banner = document.getElementById('inst'), modal = document.getElementById('imod');
+  let aviso = null, cerrado = false;
+  try { cerrado = sessionStorage.getItem('sri_inst_x') === '1'; } catch (e) {}
+  const mostrar = () => { if (!instalada && !cerrado) banner.hidden = false; };
+  const pasos = (t, l) => { document.getElementById('imodT').textContent = t; document.getElementById('imodL').innerHTML = l.map(x => `<li>${x}</li>`).join(''); modal.hidden = false; };
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); aviso = e; mostrar(); });
+  addEventListener('appinstalled', () => { banner.hidden = true; aviso = null; });
+  if (!instalada && (ios || enApp || /Android/i.test(ua))) setTimeout(mostrar, 1500);
+  document.getElementById('instBtn').onclick = async () => {
+    if (aviso) { aviso.prompt(); const r = await aviso.userChoice; if (r.outcome === 'accepted') banner.hidden = true; aviso = null; return; }
+    if (enApp) return pasos('Ábrela en el navegador', ['Toca los <b>tres puntos</b> o el botón de menú de esta pantalla.', 'Elige <b>“Abrir en el navegador”</b> (Chrome o Safari).', 'Ahí vuelve a tocar <b>Instalar</b>.']);
+    if (ios) return pasos('Instalar en iPhone', ['Ábrela en <b>Safari</b> (no funciona desde otras apps).', 'Toca el botón <b>Compartir</b> (cuadro con flecha hacia arriba).', 'Baja y elige <b>“Agregar a inicio”</b>.', 'Toca <b>Agregar</b>. El ícono aparece en tu pantalla de inicio.']);
+    if (/Android/i.test(ua)) return pasos('Instalar en Android', ['Ábrela en <b>Chrome</b>.', 'Toca los <b>tres puntos ⋮</b> arriba a la derecha.', 'Elige <b>“Instalar aplicación”</b> o <b>“Agregar a la pantalla principal”</b>.', 'Confirma con <b>Instalar</b>.']);
+    pasos('Instalar en la computadora', ['Ábrela en <b>Chrome</b> o <b>Edge</b>.', 'En la barra de dirección toca el ícono de <b>instalar</b> (pantalla con flecha).', 'Confirma con <b>Instalar</b>.']);
+  };
+  document.getElementById('instX').onclick = () => { banner.hidden = true; try { sessionStorage.setItem('sri_inst_x', '1'); } catch (e) {} };
+  document.getElementById('imodOk').onclick = () => { modal.hidden = true; };
+  modal.onclick = e => { if (e.target === modal) modal.hidden = true; };
+})();
 </script>
 </body>
 </html>
