@@ -164,6 +164,14 @@ nav a.act{color:#0c1217;background:var(--acc);box-shadow:0 0 0 1px rgba(45,212,1
   <button class="ib" id="instBtn">Instalar</button>
   <button class="ix" id="instX" aria-label="Cerrar">×</button>
 </div>
+<div class="imod" id="amod" hidden><div class="ic">
+  <h3>🔔 Activa las alertas</h3>
+  <p style="color:var(--mut);margin-bottom:12px;font-size:15px">Para que el teléfono te avise si hay gas, humo o calor:</p>
+  <ol><li><b>Voz</b> que dice qué pasa y qué hacer</li><li><b>Sonido</b> de alarma y <b>vibración</b></li><li><b>Notificación</b> aunque estés en otra app</li><li>La pantalla se queda <b>encendida</b> vigilando</li></ol>
+  <button id="amodSi" style="margin-top:18px;width:100%;border:0;border-radius:99px;padding:14px;background:var(--acc);color:#04201c;font:800 17px Archivo,sans-serif">Activar alertas</button>
+  <button id="amodNo" style="margin-top:8px;width:100%;border:0;border-radius:99px;padding:12px;background:none;color:var(--mut);font:600 15px Archivo,sans-serif">Ahora no</button>
+</div></div>
+<div id="rearma" hidden style="position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:40;background:#16232c;border:1px solid rgba(45,212,191,.4);color:var(--ink);padding:10px 16px;border-radius:99px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.4)">🔔 Toca la pantalla para activar las alertas</div>
 <div class="imod" id="imod" hidden><div class="ic">
   <h3 id="imodT">Instalar la app</h3><ol id="imodL"></ol>
   <button class="ib inst-ok" id="imodOk" style="border:0;border-radius:99px;padding:12px;background:var(--acc);color:#04201c;font:800 16px Archivo,sans-serif">Entendido</button>
@@ -607,8 +615,9 @@ function avisar(k, forzar) {
     vozT = setInterval(() => hablar(VOZ[k]), k === 'peligro' ? 9000 : 15000);   // repite la voz mientras dure la alarma
   }
 }
-$('#btnAlert').onclick = () => {
-  alertas = !alertas;
+function activarAlertas(on) {
+  alertas = on;
+  try { localStorage.setItem('sri_alertas', on ? '1' : '0'); } catch (e) {}
   if (alertas && !audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
   $('#btnAlert').textContent = alertas ? 'Alarma activada' : 'Activar alarma (voz, vibración y avisos)';
   $('#btnAlert').classList.toggle('pri', !alertas);
@@ -616,7 +625,32 @@ $('#btnAlert').onclick = () => {
     elegirVoz(); hablar('Alertas de voz activadas.'); avisar(st.prevKey, true); pedirWake();
     try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
   } else { clearInterval(beepT); clearInterval(vozT); try { wake && wake.release(); } catch (e) {} wake = null; }
-};
+}
+$('#btnAlert').onclick = () => activarAlertas(!alertas);
+
+// Al entrar: pedir activar alertas (el navegador exige un toque para sonido y permisos)
+(() => {
+  const modal = document.getElementById('amod');
+  let antes = '0'; try { antes = localStorage.getItem('sri_alertas') || '0'; } catch (e) {}
+  const permisoOk = !('Notification' in window) || Notification.permission === 'granted';
+  if (antes === '1' && permisoOk) {
+    // Ya las había activado: se reactivan solas con el primer toque en la pantalla
+    const armar = () => { if (!alertas) activarAlertas(true); };
+    addEventListener('pointerdown', armar, {once:true, capture:true});
+    document.getElementById('rearma').hidden = false;
+    addEventListener('pointerdown', () => { document.getElementById('rearma').hidden = true; }, {once:true});
+  } else if (antes !== 'no') {
+    setTimeout(() => { if (!alertas) modal.hidden = false; }, 800);
+  }
+  document.getElementById('amodSi').onclick = async () => {
+    modal.hidden = true; activarAlertas(true);
+    try { if ('Notification' in window && Notification.permission !== 'granted') {
+      const p = await Notification.requestPermission();
+      if (p === 'granted') { const r = await navigator.serviceWorker?.ready; r && r.showNotification('Alertas activadas', {body:'Te avisaré con sonido, voz, vibración y notificación.', icon:'icon-192.png', tag:'sensor-riesgo-ok', vibrate:[200,100,200]}); }
+    } } catch (e) {}
+  };
+  document.getElementById('amodNo').onclick = () => { modal.hidden = true; };
+})();
 $('#btnTest').onclick = () => {
   if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
   [0, 350, 700].forEach(d => setTimeout(() => beep(1000, .2), d));
