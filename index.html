@@ -17,7 +17,7 @@
 :root{color-scheme:dark;--bg:#0c1217;--bg2:#121b22;--card:rgba(255,255,255,.045);--card2:#152029;--ink:#e6edf2;--mut:#8b9ba7;--line:rgba(255,255,255,.08);
 --acc:#2dd4bf;--ok:#34d399;--warn:#fbbf24;--bad:#fb7185;--info:#60a5fa;--off:#94a3b8;--c:var(--off)}
 *{box-sizing:border-box;min-width:0}
-body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#17303a 0,transparent 60%),radial-gradient(900px 500px at 110% 10%,#1a2340 0,transparent 55%),var(--bg);background-attachment:fixed;color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip;padding-bottom:88px;min-height:100vh}
+body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#17303a 0,transparent 60%),radial-gradient(900px 500px at 110% 10%,#1a2340 0,transparent 55%),var(--bg);background-attachment:fixed;color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip;padding-bottom:100px;min-height:100vh}
 h1,h2,h3{font-family:"Archivo Narrow",Archivo,sans-serif;margin:0;line-height:1.1}
 button,input{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -50,7 +50,8 @@ button{cursor:pointer}
 .tile{position:relative;overflow:hidden;border-radius:14px;padding:13px 14px 12px;min-height:150px;display:flex;flex-direction:column;gap:6px;color:#fff;
  background:linear-gradient(160deg,#1a2731,#0f171d);border:1px solid rgba(255,255,255,.07);transition:background .5s,color .5s}
 .tile::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--a)}
-.tile .th{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.tile .th{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:4px 6px}
+.tile .tn{flex:1 1 auto;min-width:0}
 .tile .tn{font-weight:700;font-size:14.5px;color:var(--a);line-height:1.15}
 .tile .tn small{display:block;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.55)}
 .chip{font-size:10px;font-weight:800;letter-spacing:.03em;padding:3px 7px;flex:none;border-radius:99px;background:rgba(255,255,255,.1);white-space:nowrap}
@@ -126,10 +127,11 @@ button{cursor:pointer}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:0 14px}
 .foot{color:var(--mut);font-size:14px;margin-top:22px}
 .vt{font-size:30px}.vsub{color:var(--mut);margin:6px 0 0}
-nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:rgba(12,18,23,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:5;padding-bottom:env(safe-area-inset-bottom)}
-nav a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px 10px;font-size:12.5px;font-weight:700;color:var(--mut);text-decoration:none;min-height:62px}
-nav a svg{width:23px;height:23px}
-nav a.act{color:var(--acc)}
+nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:#16232c;border-top:2px solid rgba(45,212,191,.45);box-shadow:0 -10px 28px rgba(0,0,0,.55);z-index:5}
+nav a{position:relative;z-index:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px 4px;font-size:14px;font-weight:800;color:#c9d6df;text-decoration:none;min-height:66px;border-radius:14px;transition:color .2s,background .2s}
+nav a svg{width:27px;height:27px;stroke-width:2.3}
+nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+nav a.act{color:#0c1217;background:var(--acc);box-shadow:0 0 0 1px rgba(45,212,191,.6),0 6px 18px rgba(45,212,191,.35)}
 @media(min-width:900px){.ahora-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}.ahora-grid .grid{margin-top:0}}
 </style>
 </head>
@@ -296,12 +298,13 @@ let tick = 0, timer = null, soloV3 = false;
 async function leerBlynk() {
   const base = `https://${cfg.srv || 'blynk.cloud'}/external/api`, t = encodeURIComponent(cfg.token);
   if (tick % 5 === 0) {
-    const hw = (await (await fetch(`${base}/isHardwareConnected?token=${t}`)).text()).trim();
+    const hw = (await (await fetch(`${base}/isHardwareConnected?token=${t}&_=${Date.now()}`, {cache:'no-store'})).text()).trim();
     if (hw !== 'true') { marcarOffline(); return; }
   }
   // Versión 2 del equipo: V4 a V8. Si la plantilla aún no los tiene, se leen solo V0 a V3.
-  let r = soloV3 ? null : await fetch(`${base}/get?token=${t}&v0&v1&v2&v3&v4&v5&v6&v7&v8`);
-  if (!r || !r.ok) { soloV3 = true; r = await fetch(`${base}/get?token=${t}&v0&v1&v2&v3`); }
+  if (soloV3 && tick % 15 === 0) soloV3 = false;   // reintenta V4-V8 cada ~30 s
+  let r = soloV3 ? null : await fetch(`${base}/get?token=${t}&v0&v1&v2&v3&v4&v5&v6&v7&v8&_=${Date.now()}`, {cache:'no-store'});
+  if (!r || !r.ok) { soloV3 = true; r = await fetch(`${base}/get?token=${t}&v0&v1&v2&v3&_=${Date.now()}`, {cache:'no-store'}); }
   if (!r.ok) throw new Error('Blynk ' + r.status);
   const d = await r.json(), g = k => d[k] ?? d[k.toUpperCase()], n = k => { const v = parseFloat(g(k)); return Number.isFinite(v) ? v : null; };
   nuevaLectura(n('v0'), n('v1'), n('v2'), n('v3'), {m5:n('v4'), m135:n('v5'), pers:n('v6'), cal:n('v7'), fan:n('v8')});
@@ -339,11 +342,15 @@ function nuevaLectura(t, h, g, v3, x) {
 }
 function marcarOffline() { st.online = false; pintar(); }
 
+let ocupado = false;
 async function ciclo() {
+  if (ocupado) return; ocupado = true;
   try { cfg.demo ? leerDemo() : await leerBlynk(); }
   catch (e) { if (now() - st.last > 10) marcarOffline(); }
+  finally { ocupado = false; }
   tick++;
 }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) ciclo(); });
 function arrancar() { clearInterval(timer); st.buf = []; st.online = false; st.everOnline = false; tick = 0; ciclo(); timer = setInterval(ciclo, 2000); $('#demoBox').hidden = !cfg.demo; }
 
 // ---------- Análisis ----------
